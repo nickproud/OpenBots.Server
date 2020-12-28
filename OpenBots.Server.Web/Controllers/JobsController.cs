@@ -7,12 +7,14 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Configuration;
 using OpenBots.Server.Business;
 using OpenBots.Server.DataAccess.Repositories;
+using OpenBots.Server.DataAccess.Repositories.Interfaces;
 using OpenBots.Server.Model;
 using OpenBots.Server.Model.Attributes;
 using OpenBots.Server.Model.Core;
 using OpenBots.Server.Security;
 using OpenBots.Server.ViewModel;
 using OpenBots.Server.Web.Hubs;
+using OpenBots.Server.Web.Webhooks;
 using OpenBots.Server.WebAPI.Controllers;
 using System;
 using System.Collections.Generic;
@@ -25,14 +27,20 @@ namespace OpenBots.Server.Web
     /// Controller for Jobs
     /// </summary>
     [V1]
-    [Route("api/v{version:apiVersion}/[controller]")]
+    [Route("api/v{apiVersion:apiVersion}/[controller]")]
     [ApiController]
     [Authorize]
     public class JobsController : EntityController<Job>
     {
-        IJobManager jobManager;
+        readonly IJobManager jobManager;
+        readonly IJobParameterRepository jobParameterRepo;
+        readonly IAutomationRepository automationRepo;
+        readonly IJobCheckpointRepository jobCheckpointRepo;
         private IHubContext<NotificationHub> _hub;
-        
+        private IAutomationVersionRepository automationVersionRepo;
+        private readonly IWebhookPublisher webhookPublisher;
+        private readonly IJobRepository repository;
+
         /// <summary>
         /// JobsController constructor
         /// </summary>
@@ -43,18 +51,34 @@ namespace OpenBots.Server.Web
         /// <param name="hub"></param>
         /// <param name="configuration"></param>
         /// <param name="httpContextAccessor"></param>
+        /// <param name="jobCheckpointRepository"></param>
+        /// <param name="jobParameterRepository"></param>
+        /// <param name="automationRepository"></param>
+        /// <param name="automationVersionRepo"></param>
         public JobsController(
             IJobRepository repository,
+            IAutomationRepository automationRepository,
+            IJobParameterRepository jobParameterRepository,
+            IJobCheckpointRepository jobCheckpointRepository,
             IMembershipManager membershipManager,
             ApplicationIdentityUserManager userManager,
             IJobManager jobManager,
             IHubContext<NotificationHub> hub,
             IConfiguration configuration,
-            IHttpContextAccessor httpContextAccessor) : base(repository, userManager, httpContextAccessor, membershipManager, configuration)
+            IHttpContextAccessor httpContextAccessor,
+            IAutomationVersionRepository automationVersionRepo,
+            IWebhookPublisher webhookPublisher) : base(repository, userManager, httpContextAccessor,
+                membershipManager, configuration)
         {
             this.jobManager = jobManager;
+            this.jobParameterRepo = jobParameterRepository;
+            this.automationRepo = automationRepository;
+            this.jobCheckpointRepo = jobCheckpointRepository;
             this.jobManager.SetContext(base.SecurityContext);
+            this.repository = repository;
             _hub = hub;
+            this.automationVersionRepo = automationVersionRepo;
+            this.webhookPublisher = webhookPublisher;
         }
 
         /// <summary>
@@ -95,28 +119,28 @@ namespace OpenBots.Server.Web
         /// <param name="skip"></param>
         /// <param name="orderBy"></param>
         /// <param name="filter"></param>
-        /// <response code="200">Ok,a paginated list of all jobs</response>
+        /// <response code="200">Ok, a paginated list of all jobs</response>
         /// <response code="400">Bad request</response>
         /// <response code="403">Forbidden, unauthorized access</response>  
         /// <response code="404">Not found</response>
         /// <response code="422">Unprocessable entity</response>
         /// <returns>Paginated list of all jobs</returns>
         [HttpGet("view")]
-        [ProducesResponseType(typeof(PaginatedList<JobViewModel>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(PaginatedList<AllJobsViewModel>), StatusCodes.Status200OK)]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         [ProducesDefaultResponseType]
-        public PaginatedList<JobViewModel> View(
+        public PaginatedList<AllJobsViewModel> View(
             [FromQuery(Name = "$filter")] string filter = "",
             [FromQuery(Name = "$orderby")] string orderBy = "",
             [FromQuery(Name = "$top")] int top = 100,
             [FromQuery(Name = "$skip")] int skip = 0
             )
         {
-            ODataHelper<JobViewModel> oData = new ODataHelper<JobViewModel>();
+            ODataHelper<AllJobsViewModel> oData = new ODataHelper<AllJobsViewModel>();
 
             string queryString = "";
 
@@ -128,16 +152,16 @@ namespace OpenBots.Server.Web
 
             oData.Parse(queryString);
             Guid parentguid = Guid.Empty;
-            var newNode = oData.ParseOrderByQuerry(queryString);
+            var newNode = oData.ParseOrderByQuery(queryString);
             if (newNode == null)
-                newNode = new OrderByNode<JobViewModel>();
+                newNode = new OrderByNode<AllJobsViewModel>();
 
-            Predicate<JobViewModel> predicate = null;
+            Predicate<AllJobsViewModel> predicate = null;
             if (oData != null && oData.Filter != null)
-                predicate = new Predicate<JobViewModel>(oData.Filter);
+                predicate = new Predicate<AllJobsViewModel>(oData.Filter);
             int take = (oData?.Top == null || oData?.Top == 0) ? 100 : oData.Top;
             
-            return jobManager.GetJobAgentsandProcesses(predicate, newNode.PropertyName, newNode.Direction, oData.Skip, take);
+            return jobManager.GetJobAgentsandAutomations(predicate, newNode.PropertyName, newNode.Direction, oData.Skip, take);
         }
 
         /// <summary>
@@ -199,7 +223,7 @@ namespace OpenBots.Server.Web
         }
 
         /// <summary>
-        /// Provides a lookup list of all job agents and processes
+        /// Provides a lookup list of all job agents and automations
         /// </summary>
         /// <response code="200">Ok, a list of all jobs lookup</response>
         /// <response code="400">Bad request</response>
@@ -261,6 +285,7 @@ namespace OpenBots.Server.Web
         /// <response code="400">Bad request, if job id is not in the proper format or a proper Guid</response>
         /// <response code="403">Forbidden</response>
         /// <response code="404">Not found, when no job exists for the given job id</response>
+        /// <response code="422">Unprocessable entity</response>
         /// <returns>Job view model details for the given id</returns>
         [HttpGet("view/{id}")]
         [ProducesResponseType(typeof(JobViewModel), StatusCodes.Status200OK)]
@@ -283,7 +308,7 @@ namespace OpenBots.Server.Web
                     JobViewModel view = okResult.Value as JobViewModel;
                     view = jobManager.GetJobView(view);
                 }
-
+                
                 return actionResult;
             }
             catch (Exception ex)
@@ -434,7 +459,7 @@ namespace OpenBots.Server.Web
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         [ProducesDefaultResponseType]
-        public async Task<IActionResult> Post([FromBody] Job request)
+        public async Task<IActionResult> Post([FromBody] CreateJobViewModel request)
         {
             if (request == null)
             {
@@ -443,19 +468,40 @@ namespace OpenBots.Server.Web
             }
 
             Guid entityId = Guid.NewGuid();
-            if (request.Id == null || request.Id.HasValue || request.Id.Equals(Guid.Empty))
+            if (request.Id == null || !request.Id.HasValue || request.Id.Equals(Guid.Empty))
                 request.Id = entityId;
-
             try
             {
-                var response = await base.PostEntity(request);
+                Job job = request.Map(request); //Assign request to job entity
+                Automation automation = automationRepo.GetOne(job.AutomationId ?? Guid.Empty);
+                
+                if (automation == null) //No automation was found
+                {
+                    ModelState.AddModelError("Save", "No automation was found for the specified automation ID");
+                    return NotFound(ModelState);
+                }
+                AutomationVersion automationVersion = automationVersionRepo.Find(null, q => q.AutomationId == automation.Id).Items?.FirstOrDefault();
+
+                job.AutomationVersion = automationVersion.VersionNumber;
+                job.AutomationVersionId = automationVersion.Id;
+
+                foreach (var parameter in request.JobParameters ?? Enumerable.Empty<JobParameter>())
+                {
+                    parameter.JobId = entityId;
+                    parameter.CreatedBy = applicationUser?.UserName;
+                    parameter.CreatedOn = DateTime.UtcNow;
+                    parameter.Id = Guid.NewGuid();
+                    jobParameterRepo.Add(parameter);
+                }
 
                 //Send SignalR notification to all connected clients 
                 await _hub.Clients.All.SendAsync("botnewjobnotification", request.AgentId.ToString());
                 await _hub.Clients.All.SendAsync("sendjobnotification", "New Job added.");
-                await _hub.Clients.All.SendAsync("broadcastnewjobs", Tuple.Create(request.Id,request.AgentId,request.ProcessId));
+                await _hub.Clients.All.SendAsync("broadcastnewjobs", Tuple.Create(request.Id,request.AgentId,request.AutomationId));
+                await webhookPublisher.PublishAsync("Jobs.NewJobCreated", job.Id.ToString()).ConfigureAwait(false);
 
-                return response;
+
+                return await base.PostEntity(job);
             }
             catch (Exception ex)
             {
@@ -484,7 +530,7 @@ namespace OpenBots.Server.Web
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         [ProducesDefaultResponseType]
-        public async Task<IActionResult> Put(string id, [FromBody] Job request)
+        public async Task<IActionResult> Put(string id, [FromBody] CreateJobViewModel request)
         {
             try
             {
@@ -493,21 +539,48 @@ namespace OpenBots.Server.Web
                 var existingJob = repository.GetOne(entityId);
                 if (existingJob == null) return NotFound("Unable to find a Job for the specified ID");
 
+                Automation automation = automationRepo.GetOne(existingJob.AutomationId ?? Guid.Empty);
+                if (automation == null) //No automation was found
+                {
+                    ModelState.AddModelError("Save", "No automation was found for the specified automation ID");
+                    return NotFound(ModelState);
+                }
+
+                AutomationVersion automationVersion = automationVersionRepo.Find(null, q => q.AutomationId == automation.Id).Items?.FirstOrDefault();
+                existingJob.AutomationVersion = automationVersion.VersionNumber;
+                existingJob.AutomationVersionId = automationVersion.Id;
+
                 existingJob.AgentId = request.AgentId;
                 existingJob.StartTime = request.StartTime;
                 existingJob.EndTime = request.EndTime;
                 existingJob.EnqueueTime = request.EnqueueTime;
                 existingJob.DequeueTime = request.DequeueTime;
-                existingJob.ProcessId = request.ProcessId;
+                existingJob.AutomationId = request.AutomationId;
                 existingJob.JobStatus = request.JobStatus;
                 existingJob.Message = request.Message;
                 existingJob.IsSuccessful = request.IsSuccessful;
-                existingJob.ErrorReason = request.ErrorReason;
-                existingJob.ErrorCode = request.ErrorCode;
-                existingJob.SerializedErrorString = request.SerializedErrorString;
 
                 var response = await base.PutEntity(id, existingJob);
+
+                jobManager.DeleteExistingParameters(entityId);
+
+                var set = new HashSet<string>();
+                foreach (var parameter in request.JobParameters ?? Enumerable.Empty<JobParameter>())
+                {
+                    if (!set.Add(parameter.Name)) 
+                    {
+                        ModelState.AddModelError("Agent", "Agent Name Already Exists");
+                        return BadRequest(ModelState);
+                    }
+                    parameter.JobId = entityId;
+                    parameter.CreatedBy = applicationUser?.UserName;
+                    parameter.CreatedOn = DateTime.UtcNow;
+                    parameter.Id = Guid.NewGuid();
+                    jobParameterRepo.Add(parameter);
+                }
+
                 //Send SignalR notification to all connected clients 
+                await webhookPublisher.PublishAsync("Jobs.JobUpdated", existingJob.Id.ToString()).ConfigureAwait(false);
                 await _hub.Clients.All.SendAsync("sendjobnotification", string.Format("Job id {0} updated.", existingJob.Id));
 
                 return response;
@@ -593,6 +666,7 @@ namespace OpenBots.Server.Web
                 var response = await base.PutEntity(id, existingJob);
                 //Send SignalR notification to all connected clients 
                 await _hub.Clients.All.SendAsync("sendjobnotification", string.Format("Job id {0} updated.", existingJob.Id));
+                await webhookPublisher.PublishAsync("Jobs.JobUpdated", existingJob.Id.ToString()).ConfigureAwait(false);
 
                 return response;
             }
@@ -619,9 +693,22 @@ namespace OpenBots.Server.Web
         [ProducesDefaultResponseType]
         public async Task<IActionResult> Delete(string id)
         {
+            Guid jobId = new Guid(id);
+            var existingJob = repository.GetOne(jobId);
+
+            if (existingJob == null)
+            {
+                ModelState.AddModelError("Job", "Job cannot be found or does not exist.");
+                return NotFound(ModelState);
+            }
+
             var response = await base.DeleteEntity(id);
+            jobManager.DeleteExistingParameters(jobId);
+            jobManager.DeleteExistingCheckpoints(jobId);
+
             //Send SignalR notification to all connected clients 
             await _hub.Clients.All.SendAsync("sendjobnotification", string.Format("Job id {0} deleted.", id));
+            await webhookPublisher.PublishAsync("Jobs.JobDeleted", existingJob.Id.ToString()).ConfigureAwait(false);
 
             return response;
         }
@@ -645,12 +732,129 @@ namespace OpenBots.Server.Web
         public async Task<IActionResult> Patch(string id,
             [FromBody] JsonPatchDocument<Job> request)
         {
+            Guid jobId = new Guid(id);
+            var existingJob = repository.GetOne(jobId);
+
+            if (existingJob == null)
+            {
+                ModelState.AddModelError("Job", "Job cannot be found or does not exist.");
+                return NotFound(ModelState);
+            }
+
             var response = await base.PatchEntity(id, request);
 
             //Send SignalR notification to all connected clients 
             await _hub.Clients.All.SendAsync("sendjobnotification", string.Format("Job id {0} updated.", id));
+            await webhookPublisher.PublishAsync("Jobs.JobUpdated", existingJob.Id.ToString()).ConfigureAwait(false);
 
             return response;
+        }
+
+        /// <summary>
+        /// Adds checkpoint to the existing JobCheckPoints
+        /// </summary>
+        /// <remarks>
+        /// Creates a new Job Checkpoint for the specified job id
+        /// </remarks>
+        /// <param name="jobId"></param>
+        /// <param name="request"></param>
+        /// <response code="200">Ok, new checkpoint created and returned</response>
+        /// <response code="400">Bad request, when the job value is not in proper format</response>
+        /// <response code="403">Forbidden, unauthorized access</response>
+        /// <response code="409">Conflict, concurrency error</response> 
+        /// <response code="422">Unprocessabile entity, when a duplicate record is being entered</response>
+        /// <returns> Newly created Checkpoint details</returns>
+        [HttpPost("{JobId}/AddCheckpoint")]
+        [ProducesResponseType(typeof(JobCheckpoint), StatusCodes.Status200OK)]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+        [ProducesDefaultResponseType]
+        public async Task<IActionResult> AddCheckpoint([FromBody] JobCheckpoint request, string jobId)
+        {
+            if (request == null)
+            {
+                ModelState.AddModelError("Save", "No data passed");
+                return BadRequest(ModelState);
+            }
+
+            Guid entityId = Guid.NewGuid();
+            if (request.Id == null || !request.Id.HasValue || request.Id.Equals(Guid.Empty))
+                request.Id = entityId;
+
+            Job job = repository.GetOne(new Guid(jobId));
+            if (job == null)
+            {
+                return NotFound("The Job ID provided does not match any existing Jobs");
+            }
+
+            try
+            {
+                request.JobId = new Guid(jobId);
+                request.CreatedBy = applicationUser?.UserName;
+                request.CreatedOn = DateTime.UtcNow;
+                jobCheckpointRepo.Add(request);
+                var resultRoute = "GetJobCheckpoint";
+
+                return CreatedAtRoute(resultRoute, new { id = request.Id.Value.ToString("b") }, request);
+            }
+            catch (Exception ex)
+            {
+                return ex.GetActionResult();
+            }
+        }
+
+        /// <summary>
+        /// Provides a checkpoint's view model details for a particular job id
+        /// </summary>
+        /// <param name="jobId">Job id</param>
+        /// <response code="200">Ok, if a checkpoint exists for the given job id</response>
+        /// <response code="304">Not modified</response>
+        /// <response code="400">Bad request, if job id is not in the proper format or a proper Guid</response>
+        /// <response code="403">Forbidden</response>
+        /// <response code="404">Not found, when no job exists for the given job id</response>
+        /// <response code="422">Unprocessable entity</response>
+        /// <returns>JobCheckpoint details for the given id</returns>
+        [HttpGet("{JobId}/JobCheckpoints", Name = "GetJobCheckpoint")]
+        [ProducesResponseType(typeof(PaginatedList<JobCheckpoint>), StatusCodes.Status200OK)]
+        [Produces("application/json")]
+        [ProducesResponseType(StatusCodes.Status304NotModified)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+        [ProducesDefaultResponseType]
+        public async Task<IActionResult> JobCheckpoints(
+            string jobId,
+            [FromQuery(Name = "$filter")] string filter = "",
+            [FromQuery(Name = "$orderby")] string orderBy = "",
+            [FromQuery(Name = "$top")] int top = 100,
+            [FromQuery(Name = "$skip")] int skip = 0
+            )
+        {
+            Job job = repository.GetOne(new Guid(jobId));
+            if (job == null)
+            {
+                return NotFound("The Job ID provided does not match any existing Jobs");
+            }
+
+            ODataHelper<JobCheckpoint> oData = new ODataHelper<JobCheckpoint>();
+
+            string queryString = "";
+
+            if (HttpContext != null
+                && HttpContext.Request != null
+                && HttpContext.Request.QueryString != null
+                && HttpContext.Request.QueryString.HasValue)
+                queryString = HttpContext.Request.QueryString.Value;
+
+            oData.Parse(queryString);
+            Guid parentguid = Guid.Empty;
+
+            return Ok(jobCheckpointRepo.Find(parentguid, oData.Filter, oData.Sort, oData.SortDirection, oData.Skip,
+                oData.Top).Items.Where(c=> c.JobId == new Guid(jobId)));
         }
     }
 }

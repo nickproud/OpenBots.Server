@@ -1,5 +1,5 @@
 import { HttpResponse } from '@angular/common/http';
-import { Component, OnInit, TemplateRef } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormBuilder, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NbToastrService, NbDialogService } from '@nebular/theme';
@@ -15,7 +15,7 @@ import { ItemsPerPage } from '../../../interfaces/itemsPerPage';
   styleUrls: ['./all-change-log.component.scss'],
 })
 export class AllChangeLogComponent implements OnInit {
-  showExportbtn = false
+  showExportbtn = false;
   showpage: any = [];
   params_page_name: any = [];
   auditlog: FormGroup;
@@ -40,12 +40,10 @@ export class AllChangeLogComponent implements OnInit {
 
   constructor(
     protected router: Router,
-    private dialogService: NbDialogService,
     private acroute: ActivatedRoute,
     private helperService: HelperService,
     private _FileSaverService: FileSaverService,
     protected changelogService: ChangelogService,
-    private toastrService: NbToastrService,
     private formBuilder: FormBuilder
   ) {
     this.acroute.queryParams.subscribe((params) => {
@@ -74,7 +72,9 @@ export class AllChangeLogComponent implements OnInit {
   exportFile() {
     let fileName: string;
     this.changelogService
-      .getExportFile(`ServiceName eq '${this.select_serice_name}'and ObjectId eq guid'${this.params_id}'`)
+      .getExportFile(
+        `ServiceName eq '${this.select_serice_name}'and ObjectId eq guid'${this.params_id}'`
+      )
       .subscribe((data: HttpResponse<Blob>) => {
         fileName = data.headers
           .get('content-disposition')
@@ -95,7 +95,7 @@ export class AllChangeLogComponent implements OnInit {
     this.page.pageNumber = 1;
     this.page.pageSize = 5;
     if (this.params_page_name != undefined || this.params_page_name != null) {
-      this.showExportbtn = true ;
+      this.showExportbtn = true;
 
       this.get_service_name(this.params_page_name);
     } else if (
@@ -140,7 +140,6 @@ export class AllChangeLogComponent implements OnInit {
 
   get_service_name(val) {
     if (val) {
-
       if (this.params == false) {
         this.service_name_page = true;
         this.select_serice_name = val;
@@ -158,8 +157,7 @@ export class AllChangeLogComponent implements OnInit {
             this.get_perPage = true;
           });
       } else if (this.params == true) {
-
-          this.service_name_page = true;
+        this.service_name_page = true;
         this.select_serice_name = val;
         const skip = (this.page.pageNumber - 1) * this.per_page_num;
         this.changelogService
@@ -174,14 +172,11 @@ export class AllChangeLogComponent implements OnInit {
             this.page.totalCount = data.totalCount;
             this.get_perPage = true;
           });
-
       }
-    }
-    else if (val == null || val == '' || val == undefined) {
+    } else if (val == null || val == '' || val == undefined) {
       this.service_name_page = false;
       this.pagination(this.page.pageNumber, this.page.pageSize);
     }
-
   }
 
   per_page(val) {
@@ -368,5 +363,10 @@ export class AllChangeLogComponent implements OnInit {
         }
       }
     }
+  }
+
+  trackByFn(index: number, item: unknown): number | null {
+    if (!item) return null;
+    return index;
   }
 }

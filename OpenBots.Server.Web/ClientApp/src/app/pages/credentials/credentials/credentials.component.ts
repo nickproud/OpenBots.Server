@@ -18,7 +18,6 @@ export class CredentialsComponent implements OnInit {
   deleteId: string;
   filterOrderBy: string;
   isDeleted = false;
-  isPagination = false;
   itemsPerPage: ItemsPerPage[] = [];
 
   constructor(
@@ -48,7 +47,7 @@ export class CredentialsComponent implements OnInit {
       url = `Credentials?$orderby=${orderBy}&$top=${top}&$skip=${skip}`;
     else url = `Credentials?$orderby=createdOn+desc&$top=${top}&$skip=${skip}`;
     this.httpService.get(url).subscribe((response) => {
-      if (response && response.items.length !== 0) {
+      if (response && response.items.length) {
         this.credentialsArr = [...response.items];
         for (const data of this.credentialsArr) {
           if (data.provider === 'AD') {
@@ -140,5 +139,10 @@ export class CredentialsComponent implements OnInit {
         `${this.filterOrderBy}`
       );
     } else this.pagination(this.page.pageNumber, this.page.pageSize);
+  }
+
+  trackByFn(index: number, item: unknown): number | null {
+    if (!item) return null;
+    return index;
   }
 }

@@ -5,6 +5,9 @@ using OpenBots.Server.Model;
 using System;
 using System.Text.Json;
 using Microsoft.AspNetCore.SignalR;
+using OpenBots.Server.DataAccess.Repositories.Interfaces;
+using System.Linq;
+using OpenBots.Server.Web.Webhooks;
 
 namespace OpenBots.Server.Web.Hubs
 {
@@ -12,13 +15,19 @@ namespace OpenBots.Server.Web.Hubs
     {
         private readonly IJobRepository jobRepository;
         private readonly IRecurringJobManager recurringJobManager;
+        private readonly IAutomationVersionRepository automationVersionRepository;
         private IHubContext<NotificationHub> _hub;
+        private readonly IWebhookPublisher webhookPublisher;
 
         public HubManager(IRecurringJobManager recurringJobManager,
-            IJobRepository jobRepository, IHubContext<NotificationHub> hub)
+            IJobRepository jobRepository, IHubContext<NotificationHub> hub,
+            IAutomationVersionRepository automationVersionRepository,
+            IWebhookPublisher webhookPublisher)
         {
             this.recurringJobManager = recurringJobManager;
             this.jobRepository = jobRepository;
+            this.automationVersionRepository = automationVersionRepository;
+            this.webhookPublisher = webhookPublisher;
             _hub = hub;
         }
 
@@ -50,6 +59,7 @@ namespace OpenBots.Server.Web.Hubs
         public string CreateJob(string scheduleSerializeObject, string jobId = "")
         {
             var schedule = JsonSerializer.Deserialize<Schedule>(scheduleSerializeObject);
+            var automationVersion = automationVersionRepository.Find(null, a => a.AutomationId == schedule.AutomationId).Items?.FirstOrDefault();
 
             Job job = new Job();
             job.AgentId = schedule.AgentId == null ? Guid.Empty : schedule.AgentId.Value;
@@ -57,11 +67,14 @@ namespace OpenBots.Server.Web.Hubs
             job.CreatedOn = DateTime.Now;
             job.EnqueueTime = DateTime.Now;
             job.JobStatus = JobStatusType.New;
-            job.ProcessId = schedule.ProcessId == null ? Guid.Empty : schedule.ProcessId.Value;
+            job.AutomationId = schedule.AutomationId == null ? Guid.Empty : schedule.AutomationId.Value;
+            job.AutomationVersion = automationVersion != null? automationVersion.VersionNumber : 0;
+            job.AutomationVersionId = automationVersion != null? automationVersion.Id : Guid.Empty;
             job.Message = "Job is created through internal system logic.";
 
             jobRepository.Add(job);
             _hub.Clients.All.SendAsync("botnewjobnotification", job.AgentId.ToString());
+            webhookPublisher.PublishAsync("Jobs.NewJobCreated", job.Id.ToString()).ConfigureAwait(false);
 
             return "Success";
         }

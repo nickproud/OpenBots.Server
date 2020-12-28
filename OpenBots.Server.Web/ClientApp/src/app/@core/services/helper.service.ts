@@ -1,5 +1,7 @@
+import { HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { FormControl } from '@angular/forms';
+import { Rule, Usage } from '../../interfaces/ipFencing';
 import { ItemsPerPage } from '../../interfaces/itemsPerPage';
 import { TimeDatePipe } from '../pipe';
 
@@ -35,5 +37,27 @@ export class HelperService {
   changeBoolean(value: boolean | string): string {
     if (value) return 'Yes';
     else return 'No';
+  }
+
+  getETagHeaders(etag: string) {
+    const headers = new HttpHeaders({ 'If-Match': etag });
+    return headers;
+  }
+
+  getUsage(): Usage[] {
+    return [
+      { name: 'Allow', value: 1 },
+      { name: 'Deny', value: -1 },
+    ];
+  }
+
+  getRules(): Rule[] {
+    return [
+      { name: 'IPv4', value: 1 },
+      { name: 'IPv4Range', value: 2 },
+      { name: 'IPv6', value: 3 },
+      { name: 'IPv6Range', value: 4 },
+      { name: 'HTTP Header', value: 5 },
+    ];
   }
 }

@@ -15,9 +15,10 @@ using OpenBots.Server.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using System.Net;
-using System.IO;
 using OpenBots.Server.Model.Attributes;
 using Microsoft.Extensions.Configuration;
+using OpenBots.Server.Web.Extensions;
+using OpenBots.Server.ViewModel.Email;
 
 namespace OpenBots.Server.WebAPI.Controllers
 {
@@ -25,7 +26,7 @@ namespace OpenBots.Server.WebAPI.Controllers
     /// Controller for organization members
     /// </summary>
     [V1]
-    [Route("api/v{version:apiVersion}/Organizations/{organizationId}/[controller]")]
+    [Route("api/v{apiVersion:apiVersion}/Organizations/{organizationId}/[controller]")]
     [ApiController]
     [Authorize]
     public class OrganizationMembersController : EntityController<OrganizationMember>
@@ -104,7 +105,7 @@ namespace OpenBots.Server.WebAPI.Controllers
                     && HttpContext.Request.QueryString.HasValue)
                     queryString = HttpContext.Request.QueryString.Value;
 
-                var newNode = oData.ParseOrderByQuerry(queryString);
+                var newNode = oData.ParseOrderByQuery(queryString);
                 if (newNode == null)
                     newNode = new OrderByNode<TeamMemberViewModel>();
 
@@ -339,7 +340,7 @@ namespace OpenBots.Server.WebAPI.Controllers
                                 EmailMessage emailMessage = new EmailMessage();
                                 emailMessage.Body = SendConfirmationEmail(code, user.Id, passwordString, "en");
                                 emailMessage.Subject = "Confirm your account at " + Constants.PRODUCT;
-                                await emailSender.SendEmailAsync(emailMessage).ConfigureAwait(false);
+                                await emailSender.SendEmailAsync(emailMessage, null, null, "Outgoing").ConfigureAwait(false);
                             }
                             else
                             {
@@ -405,6 +406,7 @@ namespace OpenBots.Server.WebAPI.Controllers
         [ProducesResponseType(typeof(IActionResult), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         [ProducesDefaultResponseType]
         [Produces("application/json")]
         public async Task<IActionResult> Delete(string organizationId, string id)
@@ -496,7 +498,7 @@ namespace OpenBots.Server.WebAPI.Controllers
                     EmailMessage emailMessage = new EmailMessage();
                     emailMessage.Body = SendConfirmationEmail(code, user.Id, passwordString, "en");
                     emailMessage.Subject = "Confirm your account at " + Constants.PRODUCT;
-                    await emailSender.SendEmailAsync(emailMessage).ConfigureAwait(false);
+                    await emailSender.SendEmailAsync(emailMessage, null, null, "Outgoing").ConfigureAwait(false);
                 }
                 else
                 {
@@ -551,12 +553,21 @@ namespace OpenBots.Server.WebAPI.Controllers
 
                 string emailBody = "";
 
-                using (StreamReader reader = new StreamReader(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Email/accountCreation.html")))
+                //using (StreamReader reader = new StreamReader(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Email/accountCreation.html")))
+                //{
+                //    emailBody = reader.ReadToEnd();
+                //    emailBody = emailBody.Replace("^Password^", password, StringComparison.OrdinalIgnoreCase);
+                //    emailBody = emailBody.Replace("^Confirm^", confirmationLink, StringComparison.OrdinalIgnoreCase);
+                //}
+
+                var templateObj = new EmailTemplateData
                 {
-                    emailBody = reader.ReadToEnd();
-                    emailBody = emailBody.Replace("^Password^", password, StringComparison.OrdinalIgnoreCase);
-                    emailBody = emailBody.Replace("^Confirm^", confirmationLink, StringComparison.OrdinalIgnoreCase);
-                }
+                    Password = password,
+                    HrefLink = confirmationLink,
+                    Url = AppDomain.CurrentDomain.BaseDirectory,
+                    FileName = "Email/accountCreation.html"
+                };
+                emailBody = EmailTextFormatter.Format(templateObj);
 
                 return emailBody;
             }

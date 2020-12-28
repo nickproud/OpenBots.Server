@@ -2,9 +2,10 @@ import { Component, OnInit, ViewChild } from '@angular/core';
 import { FormGroup, FormBuilder } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { JsonEditorComponent, JsonEditorOptions } from 'ang-jsoneditor';
-import { TimeDatePipe } from '../../../@core/pipe';
+import { FileSaverService } from 'ngx-filesaver';
 import { HelperService } from '../../../@core/services/helper.service';
 import { HttpService } from '../../../@core/services/http.service';
+import { BinaryFile } from '../../../interfaces/file';
 import { QueueItem } from '../../../interfaces/queueItem';
 
 @Component({
@@ -17,13 +18,16 @@ export class ViewQueueItemComponent implements OnInit {
   queueItemId: string;
   public editorOptions: JsonEditorOptions;
   public data: any;
+  attachedFiles: string[] = [];
+  queueItemFiles: BinaryFile[] = [];
   @ViewChild(JsonEditorComponent) editor: JsonEditorComponent;
   constructor(
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private httpService: HttpService,
     private router: Router,
-    private helperService: HelperService
+    private helperService: HelperService,
+    private fileSaverService: FileSaverService
   ) {}
 
   ngOnInit(): void {
@@ -41,8 +45,8 @@ export class ViewQueueItemComponent implements OnInit {
       organizationId: [''],
       processID: null,
       name: [''],
-      type: [''], //queueItemType: [''],
-      jsonType: [''], // entityType: [''],
+      type: [''],
+      jsonType: [''],
       dataJson: [''],
       dontDequeueUntil: [''],
       dontDequeueAfter: [''],
@@ -64,12 +68,13 @@ export class ViewQueueItemComponent implements OnInit {
       source: [''],
       expireOnUTC: [''],
       postponeUntilUTC: [''],
+      resultJSON: [''],
     });
   }
 
   getQueueDataById(): void {
     this.httpService
-      .get(`QueueItems/${this.queueItemId}`)
+      .get(`QueueItems/view/${this.queueItemId}`)
       .subscribe((response: QueueItem) => {
         if (response) {
           if (response.type === 'Json')
@@ -97,8 +102,10 @@ export class ViewQueueItemComponent implements OnInit {
             response.postponeUntilUTC,
             'lll'
           );
+          this.attachedFiles = response.binaryObjectIds;
           this.showQueueItemForm.patchValue(response);
           this.showQueueItemForm.disable();
+          this.getFilesById();
         }
       });
   }
@@ -110,5 +117,32 @@ export class ViewQueueItemComponent implements OnInit {
         id: this.queueItemId,
       },
     });
+  }
+
+  getFilesById(): void {
+    for (let attachedFileId of this.attachedFiles)
+      this.httpService
+        .get(`BinaryObjects/${attachedFileId}`)
+        .subscribe((response) => {
+          if (response) this.queueItemFiles.push(response);
+        });
+  }
+
+  downloadFile(id: string): void {
+    this.httpService
+      .get(`BinaryObjects/${id}/download`, {
+        responseType: 'blob',
+        observe: 'response',
+      })
+      .subscribe((response) => {
+        this.fileSaverService.save(
+          response.body,
+          response.headers
+            .get('content-disposition')
+            .split(';')[1]
+            .split('=')[1]
+            .replace(/\"/g, '')
+        );
+      });
   }
 }

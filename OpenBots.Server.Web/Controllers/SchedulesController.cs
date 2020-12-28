@@ -24,7 +24,7 @@ namespace OpenBots.Server.Web.Controllers
     /// Controller for Schedules
     /// </summary>
     [V1]
-    [Route("api/v{version:apiVersion}/[controller]")]
+    [Route("api/v{apiVersion:apiVersion}/[controller]")]
     [ApiController]
     [Authorize]
     public class SchedulesController : EntityController<Schedule>
@@ -44,6 +44,7 @@ namespace OpenBots.Server.Web.Controllers
         /// <param name="backgroundJobClient"></param>
         /// <param name="httpContextAccessor"></param>
         /// <param name="hubManager"></param>
+        /// <param name="configuration"></param>
         public SchedulesController(
             IScheduleRepository repository,
             IMembershipManager membershipManager,
@@ -101,7 +102,7 @@ namespace OpenBots.Server.Web.Controllers
 
             oData.Parse(queryString);
             Guid parentguid = Guid.Empty;
-            var newNode = oData.ParseOrderByQuerry(queryString);
+            var newNode = oData.ParseOrderByQuery(queryString);
             if (newNode == null)
                 newNode = new OrderByNode<ScheduleViewModel>();
 
@@ -110,7 +111,7 @@ namespace OpenBots.Server.Web.Controllers
                 predicate = new Predicate<ScheduleViewModel>(oData.Filter);
             int take = (oData?.Top == null || oData?.Top == 0) ? 100 : oData.Top;
 
-            return manager.GetScheduleAgentsandProcesses(predicate, newNode.PropertyName, newNode.Direction, oData.Skip, take);
+            return manager.GetScheduleAgentsandAutomations(predicate, newNode.PropertyName, newNode.Direction, oData.Skip, take);
         }
 
         /// <summary>
@@ -228,7 +229,8 @@ namespace OpenBots.Server.Web.Controllers
                 requestObj.Status = request.Status;
                 requestObj.ExpiryDate = request.ExpiryDate;
                 requestObj.StartDate = request.StartDate;
-                requestObj.ProcessId = request.ProcessId;
+                requestObj.AutomationId = request.AutomationId;
+                requestObj.QueueId = request.QueueId;
 
                 var response = await base.PostEntity(requestObj);
                 try
@@ -310,7 +312,7 @@ namespace OpenBots.Server.Web.Controllers
                 existingSchedule.Status = request.Status;
                 existingSchedule.ExpiryDate = request.ExpiryDate;
                 existingSchedule.StartDate = request.StartDate;
-                existingSchedule.ProcessId = request.ProcessId;
+                existingSchedule.AutomationId = request.AutomationId;
 
                 var response = await base.PutEntity(id, existingSchedule);
                 try
@@ -394,15 +396,15 @@ namespace OpenBots.Server.Web.Controllers
         /// <summary>
         /// API to run a job now
         /// </summary>
-        /// <param name="processId">Process id, against which job will be created</param>
+        /// <param name="automationId">Automation id, against which job will be created</param>
         /// <param name="agentId">Agent id, against which job will be created</param>
         /// <response code="200">Ok, if the job enqueues successfully</response>
-        /// <response code="400">Bad request, if the process id is null or ids don't match</response>
+        /// <response code="400">Bad request, if the automation id is null or ids don't match</response>
         /// <response code="403">Forbidden, unauthorized access</response>
         /// <response code="409">Conflict</response>
         /// <response code="422">Unprocessable entity</response>
         /// <returns>Ok response</returns>
-        [HttpPost("Process/{processId}/RunNow")]
+        [HttpPost("Automation/{automationId}/RunNow")]
         [ProducesResponseType(typeof(IActionResult), StatusCodes.Status200OK)]
         [Produces("application/json")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -410,11 +412,11 @@ namespace OpenBots.Server.Web.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
         [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         [ProducesDefaultResponseType]
-        public async Task<IActionResult> RunNow(string processId, string agentId)
+        public async Task<IActionResult> RunNow(string automationId, string agentId)
         {
             try
             {
-                Guid ProcessID = new Guid(processId);
+                Guid AutomationID = new Guid(automationId);
                 Guid AgentID = new Guid(agentId);
 
                 Schedule schedule = new Schedule();
@@ -428,7 +430,7 @@ namespace OpenBots.Server.Web.Controllers
                 schedule.Status = "New";
                 schedule.ExpiryDate = DateTime.Now.AddDays(1);
                 schedule.StartDate = DateTime.Now;
-                schedule.ProcessId = ProcessID;
+                schedule.AutomationId = AutomationID;
                 
                 var jsonScheduleObj = JsonSerializer.Serialize<Schedule>(schedule); 
                 var jobId = BackgroundJob.Enqueue(() => hubManager.StartNewRecurringJob(jsonScheduleObj));

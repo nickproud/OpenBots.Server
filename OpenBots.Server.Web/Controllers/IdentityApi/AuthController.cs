@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.Claims;
@@ -26,6 +25,9 @@ using OpenBots.Server.Model;
 using Newtonsoft.Json;
 using OpenBots.Server.Model.Core;
 using OpenBots.Server.Model.Attributes;
+using OpenBots.Server.Model.Options;
+using OpenBots.Server.Web.Extensions;
+using OpenBots.Server.ViewModel.Email;
 
 namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
 {
@@ -33,7 +35,7 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
     /// Controller used for token generation
     /// </summary>
     [V1]
-    [Route("api/v{version:apiVersion}/[controller]")]
+    [Route("api/v{apiVersion:apiVersion}/[controller]")]
     [ApiController]
     [AllowAnonymous]
     public class AuthController : ApplicationBaseController
@@ -50,10 +52,14 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
         readonly IPasswordPolicyRepository passwordPolicyRepository;
         readonly IOrganizationManager organizationManager;
         readonly IAccessRequestsManager accessRequestManager;
+        readonly IAccessRequestRepository accessRequestRepository;
         readonly IOrganizationMemberRepository organizationMemberRepository;
         readonly ITermsConditionsManager termsConditionsManager;
         readonly IAgentRepository agentRepository;
         readonly IAuditLogRepository auditLogRepository;
+        readonly WebAppUrlOptions webAppUrlOptions;
+        readonly IIPFencingManager iPFencingManager;
+        readonly IPFencingOptions iPFencingOptions;
 
         /// <summary>
         /// AuthController constructor
@@ -82,10 +88,12 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
            IEmailManager emailSender,
            IOrganizationManager organizationManager,
            IAccessRequestsManager accessRequestManager,
+           IAccessRequestRepository accessRequestRepository,
            IOrganizationMemberRepository organizationMemberRepository,
            IAgentRepository agentRepository,
            ITermsConditionsManager termsConditionsManager,
-           IAuditLogRepository auditLogRepository) : base(httpContextAccessor, userManager, membershipManager)
+           IAuditLogRepository auditLogRepository,
+           IIPFencingManager iPFencingManager) : base(httpContextAccessor, userManager, membershipManager)
         {
             this.userManager = userManager;
             this.signInManager = signInManager;
@@ -99,10 +107,14 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
             this.passwordPolicyRepository = passwordPolicyRepository;
             this.organizationManager = organizationManager;
             this.accessRequestManager = accessRequestManager;
+            this.accessRequestRepository = accessRequestRepository;
             this.organizationMemberRepository = organizationMemberRepository;
             this.termsConditionsManager = termsConditionsManager;
             this.agentRepository = agentRepository;
             this.auditLogRepository = auditLogRepository;
+            this.webAppUrlOptions = configuration.GetSection(WebAppUrlOptions.WebAppUrl).Get<WebAppUrlOptions>();
+            this.iPFencingManager = iPFencingManager;
+            iPFencingOptions = configuration.GetSection(IPFencingOptions.IPFencing).Get<IPFencingOptions>();
         }
 
         /// <summary>
@@ -117,6 +129,18 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
             logger.LogInformation(string.Format("Login user : {0}", loginModel.UserName));
             if (ModelState.IsValid)
             {
+                var ipCheck = iPFencingOptions.IPFencingCheck;
+                if (ipCheck != "Disabled")
+                {
+                    var ipAddress = HttpContext.Connection.RemoteIpAddress;
+                    bool isAllowedRequest = iPFencingManager.IsRequestAllowed(ipAddress);
+
+                    if (!isAllowedRequest)
+                    {
+                        return Forbid();
+                    }
+                }
+
                 ApplicationUser user = null;
                 //Sign in user id
                 string signInUser = loginModel.UserName;
@@ -246,7 +270,17 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-            
+
+            if (signupModel.CreateNewOrganization)
+            {
+                var checkOrganization = organizationManager.GetDefaultOrganization();
+                if (checkOrganization != null)
+                {
+                    ModelState.AddModelError("", "Default organization exists, you can not create new organization.");
+                    return BadRequest(ModelState);
+                }
+            }
+
             EmailVerification emailAddress = emailVerificationRepository.Find(null, p => p.Address.Equals(signupModel.Email, StringComparison.OrdinalIgnoreCase)).Items?.FirstOrDefault();
             if (emailAddress != null)
             {
@@ -262,7 +296,11 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
                 }
                 // Make a request to join organization
                 var oldOrganization = organizationManager.GetDefaultOrganization();
-                if (oldOrganization != null)
+                accessRequestRepository.ForceIgnoreSecurity();
+                var existingRequest = accessRequestRepository.Find(null, m => m.PersonId == emailAddress.PersonId)?.Items?.FirstOrDefault();
+                accessRequestRepository.ForceSecurity();
+
+                if (oldOrganization != null && existingRequest == null)
                 {
                     //Update user 
                     if (!IsPasswordValid(signupModel.Password))
@@ -297,8 +335,20 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
                     };
 
                     accessRequestManager.AddAnonymousAccessRequest(accessRequest);
-                    return Ok("Access Request has been created for existing user");
+                    return Ok(new { message = "Access Request has been created for existing user" });
                 }
+                else
+                {
+                    ModelState.AddModelError("Register", "Access request already exists");
+                    return BadRequest(ModelState);
+                }
+
+            }
+
+            if (signupModel.CreateNewOrganization == true && string.IsNullOrWhiteSpace(signupModel.Organization))
+            {
+                ModelState.AddModelError("", "Organization Name is required");
+                return BadRequest(ModelState);
             }
 
             var user = new ApplicationUser()
@@ -325,8 +375,6 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
             }
             
             var loginResult = await userManager.CreateAsync(user, passwordString).ConfigureAwait(false);
-            bool IsEmailAllowed = emailSender.IsEmailAllowed();
-
             if (!loginResult.Succeeded)
             {
                 return GetErrorResult(loginResult);
@@ -351,35 +399,47 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
                     EmailVerifications = emailIds
                 };
                 var person = personRepository.Add(newPerson);
-                                
-                var oldOrganization = organizationManager.GetDefaultOrganization();
-                if (oldOrganization != null)
+
+                //Create new organization if count is zero
+                if (signupModel.CreateNewOrganization)
                 {
-                    //Add it to access requests
-                    Model.Membership.AccessRequest accessRequest = new Model.Membership.AccessRequest()
+                    Model.Membership.Organization value = new Model.Membership.Organization();
+                    value.Name = signupModel.Organization;
+                    value.Description = "System created organization";
+                    var newOrganization = organizationManager.AddNewOrganization(value);
+
+                    if (newOrganization != null && newOrganization.Id != null)
                     {
-                        OrganizationId = oldOrganization.Id,
-                        PersonId = person.Id,
-                        IsAccessRequested = true,
-                        AccessRequestedOn = DateTime.UtcNow
-                    };
+                        Model.Membership.OrganizationMember newOrgMember = new Model.Membership.OrganizationMember()
+                        {
+                            PersonId = person.Id,
+                            OrganizationId = newOrganization.Id,
+                            IsAutoApprovedByEmailAddress = true,
+                            IsAdministrator = true
+                        };
 
-                    accessRequestManager.AddAnonymousAccessRequest(accessRequest);
-                }
-
-                if (IsEmailAllowed)
-                {
-                    string code = await userManager.GenerateEmailConfirmationTokenAsync(user).ConfigureAwait(false);
-                    EmailMessage emailMessage = new EmailMessage();
-                    EmailAddress address = new EmailAddress(user.Name, user.Email);
-                    emailMessage.To.Add(address);
-                    emailMessage.Body = SendConfirmationEmail(code, user.Id, passwordString, "en");
-                    emailMessage.Subject = "Confirm your account at " + Constants.PRODUCT;
-                    await emailSender.SendEmailAsync(emailMessage).ConfigureAwait(false);
+                        organizationMemberRepository.ForceIgnoreSecurity();
+                        organizationMemberRepository.Add(newOrgMember);
+                        organizationMemberRepository.ForceSecurity();
+                    }
                 }
                 else
                 {
-                    ModelState.AddModelError("Email", "Email is disabled.  Verification email was not sent.");
+
+                    var oldOrganization = organizationManager.GetDefaultOrganization();
+                    if (oldOrganization != null)
+                    {
+                        //Add it to access requests
+                        Model.Membership.AccessRequest accessRequest = new Model.Membership.AccessRequest()
+                        {
+                            OrganizationId = oldOrganization.Id,
+                            PersonId = person.Id,
+                            IsAccessRequested = true,
+                            AccessRequestedOn = DateTime.UtcNow
+                        };
+
+                        accessRequestManager.AddAnonymousAccessRequest(accessRequest);
+                    }
                 }
 
                 //Update the user 
@@ -390,10 +450,24 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
                     registeredUser.ForcedPasswordChange = true;
                     await userManager.UpdateAsync(registeredUser).ConfigureAwait(false);
                 }
+
+                bool IsEmailAllowed = emailSender.IsEmailAllowed();
+                if (IsEmailAllowed)
+                {
+                    string code = await userManager.GenerateEmailConfirmationTokenAsync(user).ConfigureAwait(false);
+                    EmailMessage emailMessage = new EmailMessage();
+                    EmailAddress address = new EmailAddress(user.Name, user.Email);
+                    emailMessage.To.Add(address);
+                    emailMessage.Body = SendConfirmationEmail(code, user.Id, passwordString, "en");
+                    emailMessage.Subject = "Confirm your account at " + Constants.PRODUCT;
+                    await emailSender.SendEmailAsync(emailMessage, null, null, "Outgoing").ConfigureAwait(false);
+                    return Ok(new { message = "You have successfully registered. A confirmation email has been sent" });
+                }
+                else
+                {
+                    return Ok(new { message = "Email is disabled.  Verification email was not sent." });
+                }
             }
-            if (!IsEmailAllowed)
-                return Ok(ModelState);
-            else return Ok();
         }
      
         /// <summary>
@@ -438,14 +512,14 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
         {
             ApplicationUser user = await userManager.FindByIdAsync(userId).ConfigureAwait(false);
             if (user == null)
-                return Redirect(string.Format("{0}{1}", configuration["WebAppUrl:Url"], configuration["WebAppUrl:NoUserExists"]));
+                return Redirect(string.Format("{0}{1}", webAppUrlOptions.Url, webAppUrlOptions.NoUserExists));
             if (userManager.VerifyUserTokenAsync(user, userManager.Options.Tokens.PasswordResetTokenProvider, "ResetPassword", code).Result)
             {
-                string baseUrl = string.Format(@"{0}{1}", configuration["WebAppUrl:Url"], configuration["WebAppUrl:forgotpassword"]);
+                string baseUrl = string.Format(@"{0}{1}", webAppUrlOptions.Url, webAppUrlOptions.Forgotpassword);
                 var callbackUrl = string.Format(@"{0}?userid={1}&token={2}", baseUrl, WebUtility.UrlEncode(userId), WebUtility.UrlEncode(code));
                 return Redirect(callbackUrl);
             }
-            else return Redirect(string.Format("{0}{1}", configuration["WebAppUrl:Url"], configuration["WebAppUrl:tokenerror"]));
+            else return Redirect(string.Format("{0}{1}", webAppUrlOptions.Url, webAppUrlOptions.Tokenerror));
         }
 
         /// <summary>
@@ -538,7 +612,7 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
             {
                 applicationUser = userManager.FindByIdAsync(userId).Result;
                 if (applicationUser == null)
-                    return Redirect(string.Format("{0}{1}", configuration["WebAppUrl:Url"], configuration["WebAppUrl:NoUserExists"]));
+                    return Redirect(string.Format("{0}{1}", webAppUrlOptions.Url, webAppUrlOptions.NoUserExists));
                 result = await userManager.ConfirmEmailAsync(applicationUser, code);
             }
             catch (InvalidOperationException ioe)
@@ -570,11 +644,11 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
                     emailVerificationRepository.Update(emailVerification);
                 }
                 
-                return Redirect(string.Format("{0}{1}", configuration["WebAppUrl:Url"], configuration["WebAppUrl:login"]));
+                return Redirect(string.Format("{0}{1}", webAppUrlOptions.Url, webAppUrlOptions.Login));
             }
 
             // If we got this far, something failed.
-            return Redirect(string.Format("{0}{1}", configuration["WebAppUrl:Url"], configuration["WebAppUrl:tokenerror"]));
+            return Redirect(string.Format("{0}{1}", webAppUrlOptions.Url, webAppUrlOptions.Tokenerror));
         }
 
         /// <summary>
@@ -602,7 +676,7 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
                     emailMessage.To.Add(address);
                     emailMessage.Body = SendForgotPasswordEmail(code, user.Id, "en");
                     emailMessage.Subject = string.Format("Reset your password at {0}", Constants.PRODUCT);
-                    await emailSender.SendEmailAsync(emailMessage).ConfigureAwait(false);
+                    await emailSender.SendEmailAsync(emailMessage, null, null, "Outgoing").ConfigureAwait(false);
                 }
                 else
                 {
@@ -685,11 +759,21 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
 
                 string emailBody = "";
 
-                using (StreamReader reader = new StreamReader(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Email/confirm-en.html")))
+                //using (StreamReader reader = new StreamReader(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Email/confirm-en.html")))
+                //{
+                //    emailBody = reader.ReadToEnd();
+                //    emailBody = emailBody.Replace("^Confirm^", confirmationLink);
+                //}
+
+                var templateObj = new EmailTemplateData
                 {
-                    emailBody = reader.ReadToEnd();
-                    emailBody = emailBody.Replace("^Confirm^", confirmationLink);
-                }
+                    HrefLink = confirmationLink,
+                    Url = AppDomain.CurrentDomain.BaseDirectory,
+                    ApiUrl = configuration["WebAppUrl:ApiUrl"],
+                    FileName = "Email/confirm-en.html"
+                };
+                emailBody = EmailTextFormatter.Format(templateObj);
+
 
                 bool IsEmailAllowed = emailSender.IsEmailAllowed();
                 if (IsEmailAllowed)
@@ -699,7 +783,7 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
                     emailMessage.To.Add(address);
                     emailMessage.Body = emailBody;
                     emailMessage.Subject = "Confirm your email address at " + Constants.PRODUCT;
-                    await emailSender.SendEmailAsync(emailMessage).ConfigureAwait(false);
+                    await emailSender.SendEmailAsync(emailMessage, null, null, "Outgoing").ConfigureAwait(false);
                 }
                 else
                 {
@@ -733,7 +817,7 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
             Guid personId = new Guid(_key);
             if (when < DateTime.UtcNow.AddHours(-24))
             {
-                return Redirect(string.Format("{0}{1}", configuration["WebAppUrl:Url"], configuration["WebAppUrl:tokenerror"]));
+                return Redirect(string.Format("{0}{1}", webAppUrlOptions.Url, webAppUrlOptions.Tokenerror));
             }
 
             var emailVerification = emailVerificationRepository.Find(null, p => p.PersonId == personId && p.Address.Equals(emailAddress, StringComparison.OrdinalIgnoreCase) && p.IsVerified != true)?.Items?.FirstOrDefault();
@@ -756,7 +840,7 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
                 emailVerification.IsVerified = true;
                 emailVerificationRepository.Update(emailVerification);
             }
-            return Redirect(string.Format("{0}{1}", configuration["WebAppUrl:Url"], configuration["WebAppUrl:emailaddressconfirmed"]));
+            return Redirect(string.Format("{0}{1}", webAppUrlOptions.Url, webAppUrlOptions.Emailaddressconfirmed));
         }
 
         /// <summary>
@@ -769,6 +853,18 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
         [Route("Refresh")]
         public async Task<IActionResult> Refresh(RefreshModel model)
         {
+            var ipCheck = iPFencingOptions.IPFencingCheck;
+            if (ipCheck != "Disabled")
+            {
+                var ipAddress = HttpContext.Connection.RemoteIpAddress;
+                bool isAllowedRequest = iPFencingManager.IsRequestAllowed(ipAddress);
+
+                if (!isAllowedRequest)
+                {
+                    return Forbid();
+                }
+            }
+
             var principal = GetPrincipalFromExpiredToken(model.Token);
             var username = principal.Identity.Name;
             var savedRefreshToken = await GetRefreshToken(username); //Retrieve the refresh token from [AspNetUserTokens] table
@@ -803,7 +899,6 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
         {
             return HttpContext.Connection.RemoteIpAddress.ToString();
         }
-
         private async Task<string> GetRefreshToken(string username)
         {
             var user = await userManager.FindByNameAsync(username).ConfigureAwait(true);
@@ -935,12 +1030,22 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
 
                 string emailBody = "";
 
-                using (StreamReader reader = new StreamReader(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Email/accountCreation.html")))
+                //using (StreamReader reader = new StreamReader(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Email/accountCreation.html")))
+                //{
+                //    emailBody = reader.ReadToEnd();
+                //    emailBody = emailBody.Replace("^Password^", password);
+                //    emailBody = emailBody.Replace("^Confirm^", confirmationLink);
+                //}
+
+                var templateObj = new EmailTemplateData
                 {
-                    emailBody = reader.ReadToEnd();
-                    emailBody = emailBody.Replace("^Password^", password);
-                    emailBody = emailBody.Replace("^Confirm^", confirmationLink);
-                }
+                    Password = password,
+                    HrefLink = confirmationLink,
+                    Url = AppDomain.CurrentDomain.BaseDirectory,
+                    ApiUrl = configuration["WebAppUrl:ApiUrl"],
+                    FileName = "Email/accountCreation.html"
+                };
+                emailBody = EmailTextFormatter.Format(templateObj);
 
                 return emailBody;
             }
@@ -958,9 +1063,19 @@ namespace OpenBots.Server.WebAPI.Controllers.IdentityApi
                                                }, protocol: HttpContext.Request.Scheme);
             if (language == "en")
             {
-                StreamReader reader = new StreamReader(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Email/forgotPassword-en.html"));
-                string emailBody = reader.ReadToEnd();
-                emailBody = emailBody.Replace("^resetpassword^", confirmationLink);
+                //StreamReader reader = new StreamReader(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Email/forgotPassword-en.html"));
+                //string emailBody = reader.ReadToEnd();
+                //emailBody = emailBody.Replace("^resetpassword^", confirmationLink);
+
+                var templateObj = new EmailTemplateData
+                {
+                    HrefLink = confirmationLink,
+                    Url = AppDomain.CurrentDomain.BaseDirectory,
+                    ApiUrl = configuration["WebAppUrl:ApiUrl"],
+                    FileName = "Email/forgotPassword-en.html"
+                };
+                string emailBody = EmailTextFormatter.Format(templateObj);
+
                 return emailBody;
             }
             return null;

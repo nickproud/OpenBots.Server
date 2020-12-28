@@ -3,21 +3,27 @@ import {
   HttpRequest,
   HttpHandler,
   HttpEvent,
-  HttpInterceptor, HttpErrorResponse
+  HttpInterceptor,
+  HttpErrorResponse,
 } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
-import { catchError, switchMap } from 'rxjs/operators';
+import { catchError, filter, switchMap, take } from 'rxjs/operators';
 import { NbToastrService } from '@nebular/theme';
 import { Router } from '@angular/router';
 import { AuthService } from '../services/auth.service';
-
+import { BehaviorSubject } from 'rxjs/BehaviorSubject';
+import { throwError } from 'rxjs/internal/observable/throwError';
+import { Observable } from 'rxjs/internal/Observable';
+import { HttpService } from '../services/http.service';
 
 @Injectable()
 export class TokenInterceptor implements HttpInterceptor {
+  private isRefreshing = false;
+  private refreshTokenSubject = new BehaviorSubject<any>(null);
   constructor(
     private toastrService: NbToastrService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private httpService: HttpService
   ) {}
 
   intercept(
@@ -37,8 +43,20 @@ export class TokenInterceptor implements HttpInterceptor {
           if (error.error == null) {
             return this.handleError(request, next);
           }
-        }
-        if (error.status != 401) {
+        } else if (error.status == 409) {
+          return throwError(error);
+        } else if (error.status == 429) {
+          if (error.headers.get('Retry-After')) {
+            if (this.httpService.countapi !== 1) {
+              this.httpService.watchtotal(
+                error.status,
+                error.headers.get('Retry-After')
+              );
+            }
+          } else if (this.httpService.countapi !== 1) {
+            this.httpService.watchtotal(error.status, 30);
+          }
+        } else if (error.status != 401) {
           return this.handleErrorGlobal(error);
         }
       })
@@ -46,13 +64,25 @@ export class TokenInterceptor implements HttpInterceptor {
   }
 
   handleError(request: HttpRequest<unknown>, next: HttpHandler) {
-    return this.authService.refreshToken().pipe(
-      switchMap((token: any) => {
-        localStorage.setItem('accessToken', token.jwt);
-        localStorage.setItem('refreshToken', token.refreshToken);
-        return next.handle(this.attachToken(request, token.jwt));
-      })
-    );
+    if (!this.isRefreshing) {
+      this.isRefreshing = true;
+      this.refreshTokenSubject.next(null);
+      return this.authService.refreshToken().pipe(
+        switchMap((token: any) => {
+          this.isRefreshing = false;
+          this.refreshTokenSubject.next(token.jwt);
+          return next.handle(this.attachToken(request, token.jwt));
+        })
+      );
+    } else {
+      return this.refreshTokenSubject.pipe(
+        filter((token) => token != null),
+        take(1),
+        switchMap((token) => {
+          return next.handle(this.attachToken(request, token));
+        })
+      );
+    }
   }
 
   handleErrorGlobal(error) {
@@ -64,6 +94,7 @@ export class TokenInterceptor implements HttpInterceptor {
     } else {
       if (
         error.status == 400 &&
+        error.error.serviceErrors &&
         error.error.serviceErrors[0] ==
           'Token is no longer valid. Please log back in.'
       ) {
@@ -73,6 +104,7 @@ export class TokenInterceptor implements HttpInterceptor {
       }
       if (
         error.status == 400 &&
+        error.error.serviceErrors &&
         error.error.serviceErrors[0] !=
           'Token is no longer valid. Please log back in.'
       ) {

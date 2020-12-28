@@ -27,22 +27,35 @@
             <div class="col-md-6 col-lg-6 col-xxxl-6">
               <label for="subtopic" class="label">Agent Name *</label>
               <select class="custom-select" formControlName="agentId">
-                <option value="" disabled>Pleace select agent name</option>
+                <option value="" disabled>Please select agent name</option>
                 <option *ngFor="let item of allAgents" [value]="item?.agentId">
                   {{ item?.agentName }}
                 </option>
               </select>
+              <div *ngIf=" formControls.agentId.invalid &&(formControls.agentId.dirty || formControls.agentId.touched) "
+                class="invalid-feedback-frm">
+                <div *ngIf="formControls.agentId.errors.required">
+                  Agent name is required.
+                </div>
+              </div>
             </div>
           </div>
           <div class="row rowPadBottom">
             <div class="col-md-6 col-lg-6 col-xxxl-6">
-              <label for="processId" class="label">Processes *</label>
-              <select class="custom-select" formControlName="processId">
-                <option value="" disabled>Please select process name</option>
-                <option *ngFor="let item of allProcesses" [value]="item?.processId">
-                  {{ item?.processNameWithVersion }}
+              <label for="processId" class="label">Automations *</label>
+              <select class="custom-select" formControlName="automationId">
+                <option value="" disabled>Please select automation name</option>
+                <option *ngFor="let item of allProcesses" [value]="item?.automationId">
+                  {{ item?.automationNameWithVersion }}
                 </option>
               </select>
+              <div
+                *ngIf=" formControls.automationId.invalid &&(formControls.automationId.dirty || formControls.automationId.touched) "
+                class="invalid-feedback-frm">
+                <div *ngIf="formControls.automationId.errors.required">
+                  Automation name is required.
+                </div>
+              </div>
             </div>
             <div class="col-md-6 col-lg-6 col-xxxl-6">
               <div class="checkbox checbox-switch switch-primary">
@@ -104,7 +117,7 @@
           <div class="row">
             <div class="col-md-12 col-lg-12 col-xxxl-6">
               <button class="btn btn-primary btnMargnTop" status="primary"
-                [disabled]="!scheduleForm.valid || isSubmitted || scheduleForm.value.startingType == 'recurrence' && cronExpression == '0/0 * 0/0 * *'"
+                [disabled]="!scheduleForm.valid || isSubmitted || (scheduleForm.value.startingType == 'recurrence' && cronExpression == '0/0 * 0/0 * *')"
                 (click)="onScheduleSubmit()">
                 Save
               </button>

@@ -19,7 +19,7 @@ namespace OpenBots.Server.WebAPI.Controllers
     /// Controller for Organization Units
     /// </summary>
     [V1]
-    [Route("api/v{version:apiVersion}/Organizations/{organizationId}/[controller]")]
+    [Route("api/v{apiVersion:apiVersion}/Organizations/{organizationId}/[controller]")]
     [ApiController]
     [Authorize]
     public class OrganizationUnitsController : EntityController<OrganizationUnit>
@@ -33,6 +33,7 @@ namespace OpenBots.Server.WebAPI.Controllers
         /// <param name="membershipManager"></param>
         /// <param name="userManager"></param>
         /// <param name="httpContextAccessor"></param>
+        /// <param name="configuration"></param>
         public OrganizationUnitsController(
             IOrganizationUnitRepository repository,
             IMembershipManager membershipManager,

@@ -7,6 +7,7 @@ import {
   UploadFile,
   UploaderOptions,
 } from 'ngx-uploader';
+import { HelperService } from '../../../@core/services/helper.service';
 import { HttpService } from '../../../@core/services/http.service';
 import { BinaryFile } from '../../../interfaces/file';
 
@@ -39,11 +40,14 @@ export class AddFileComponent implements OnInit {
   urlId: string;
   fileByIdData: BinaryFile;
   title = 'Add';
+  fileSize = false;
+  eTag: string;
   constructor(
     private formBuilder: FormBuilder,
     protected router: Router,
     private httpService: HttpService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private helperService: HelperService
   ) {}
 
   ngOnInit(): void {
@@ -70,6 +74,8 @@ export class AddFileComponent implements OnInit {
     switch (output.type) {
       case 'addedToQueue':
         if (typeof output.file !== 'undefined') {
+          if (!output.file.size) this.fileSize = true;
+          else this.fileSize = false;
           this.native_file = output.file.nativeFile;
           this.native_file_name = output.file.nativeFile.name;
           this.confrimUpoad = true;
@@ -94,55 +100,17 @@ export class AddFileComponent implements OnInit {
       formData.append('file', this.native_file, this.native_file_name);
       formData.append('name', this.addfile.value.name);
       this.saveForm = formData;
-      //   if (this.urlId) {
-      //     this.updateFile(formData);
-      //   } else {
-      //     this.addFile(formData);
-      //   }
-      // } else if (this.urlId) {
-      //   this.updateFile();
     }
     if (this.urlId) this.updateFile();
     else this.addFile();
-    // if (this.confrimUpoad == true) {
-    //   let formData = new FormData();
-    //   formData.append('file', this.native_file, this.native_file_name);
-    //   this.saveForm = formData;
-    //   this.httpService.post(
-    //       `BinaryObjects/upload?organizationId=${this.orgId}&apiComponent=BinaryObjectAPI&name=${this.addfile.value.name}&folder=${this.addfile.value.folder}`,
-    //       formData
-    //     )
-    //     .subscribe((data: any) => {
-    //       this.fileId = data;
-    //       this.confrimUpoad = true;
-    //       // this.httpService.success('File Upload Successfully')
-    //       this.httpService
-    //         .post(
-    //           `BinaryObjects/save?organizationId=${this.orgId}&binaryObjectId=${this.fileId}&apiComponent=BinaryObjectAPI&name=${this.addfile.value.name}&folder=${this.addfile.value.folder}`,
-    //           this.saveForm
-    //         )
-    //         .subscribe((data: any) => {
-    //           this.httpService.success(
-    //             'File Save Successfully and File Upload Successfully'
-    //           );
-    //           this.router.navigate(['pages/file/list']);
-    //           this.show_upload = false;
-    //         });
-    //     });
-    // }
-    // else if (this.confrimUpoad == false) {
-    //   this.httpService.error('Please Upload File');
-    //   this.show_upload = true;
-    // }
-    // this.submitted = false;
   }
 
-  onReset() {
+  onReset(): void {
     this.submitted = false;
     this.addfile.reset();
   }
 
-  handleInput(event) {
+  handleInput(event): void {
     if (event.code == 'Slash' || event.code == 'Backslash') {
       this.showKeyError = true;
       this.submitted = true;
@@ -153,11 +121,12 @@ export class AddFileComponent implements OnInit {
 
   getFileDataById(): void {
     this.httpService
-      .get(`BinaryObjects/${this.urlId}`)
-      .subscribe((response: BinaryFile) => {
-        if (response) {
-          this.fileByIdData = { ...response };
-          this.addfile.patchValue({ ...response });
+      .get(`BinaryObjects/${this.urlId}`, { observe: 'response' })
+      .subscribe((response) => {
+        if (response && response.body) {
+          this.eTag = response.headers.get('etag');
+          this.fileByIdData = { ...response.body };
+          this.addfile.patchValue({ ...response.body });
         }
       });
   }
@@ -186,47 +155,16 @@ export class AddFileComponent implements OnInit {
       },
       () => (this.submitted = false)
     );
-    // if (this.confrimUpoad == true) {
-    // let formData = new FormData();
-    // formData.append('file', this.native_file, this.native_file_name);
-    // this.saveForm = formData;
-
-    // this.httpService
-    //   .post(
-    //     `BinaryObjects/upload?organizationId=${this.orgId}&apiComponent=BinaryObjectAPI&name=${this.addfile.value.name}&folder=${this.addfile.value.folder}`,
-    //     formData
-    //   )
-    //   .subscribe((data: any) => {
-    //     this.fileId = data;
-    //     this.confrimUpoad = true;
-    //     // this.httpService.success('File Upload Successfully')
-    //     this.httpService
-    //       .post(
-    //         `BinaryObjects/save?organizationId=${this.orgId}&binaryObjectId=${this.fileId}&apiComponent=BinaryObjectAPI&name=${this.addfile.value.name}&folder=${this.addfile.value.folder}`,
-    //         this.saveForm
-    //       )
-    //       .subscribe((data: any) => {
-    //         this.httpService.success(
-    //           'File Save Successfully and File Upload Successfully'
-    //         );
-    //         this.router.navigate(['pages/file/list']);
-    //         this.show_upload = false;
-    //       });
-    //   });
-    // if (this.confrimUpoad == false) {
-    //   this.httpService.error('Please Upload File');
-    //   this.show_upload = true;
-    // }
-    // this.submitted = false;
   }
 
   updateFile(): void {
-    // this.fileByIdData.name = this.addfile.value.name;
-    // this.fileByIdData.folder = this.addfile.value.folder;
+    const headers = this.helperService.getETagHeaders(this.eTag);
     if (this.confrimUpoad) {
+      this.saveForm.append('folder', this.addfile.value.folder);
       this.httpService
         .put(`binaryobjects/${this.urlId}/update`, this.saveForm, {
           observe: 'response',
+          headers,
         })
         .subscribe(
           (response) => {
@@ -235,12 +173,19 @@ export class AddFileComponent implements OnInit {
               this.router.navigate(['pages/file/list']);
             }
           },
-          () => (this.submitted = false)
+          (error) => {
+            if (error && error.error && error.error.status === 409) {
+              this.submitted = false;
+              this.httpService.error(error.error.serviceErrors);
+              this.getFileDataById();
+            }
+          }
         );
     } else {
       this.httpService
         .put(`binaryobjects/${this.urlId}`, this.addfile.value, {
           observe: 'response',
+          headers,
         })
         .subscribe(
           (response) => {
@@ -249,39 +194,14 @@ export class AddFileComponent implements OnInit {
               this.router.navigate(['pages/file/list']);
             }
           },
-          () => (this.submitted = false)
+          (error) => {
+            if (error && error.error && error.error.status === 409) {
+              this.submitted = false;
+              this.httpService.error(error.error.serviceErrors);
+              this.getFileDataById();
+            }
+          }
         );
     }
-    //   if (formData) {
-    //     this.httpService
-    //       .put(
-    //         `BinaryObjects/${this.urlId}/upload?organizationId=${this.orgId}&apiComponent=BinaryObjectAPI&name=${this.addfile.value.name}&folder=${this.addfile.value.folder}`,
-    //         formData,
-    //         { observe: 'response' }
-    //       )
-    //       .subscribe(
-    //         (response) => {
-    //           if (response && response.status == 200) {
-    //             this.router.navigate(['pages/file/list']);
-    //           }
-    //         },
-    //         () => (this.submitted = false)
-    //       );
-    //   } else {
-    //     this.fileByIdData.name = this.addfile.value.name;
-    //     this.fileByIdData.folder = this.addfile.value.folder;
-    //     this.httpService
-    //       .put(`BinaryObjects/${this.urlId}`, this.fileByIdData, {
-    //         observe: 'response',
-    //       })
-    //       .subscribe(
-    //         (response) => {
-    //           if (response && response.status) {
-    //             this.router.navigate(['pages/file/list']);
-    //           }
-    //         },
-    //         () => (this.submitted = false)
-    //       );
-    //   }
   }
 }

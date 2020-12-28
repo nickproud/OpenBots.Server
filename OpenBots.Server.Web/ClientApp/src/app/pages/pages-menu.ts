@@ -1,9 +1,3 @@
-/*
- * Copyright (c) Akveo 2019. All Rights Reserved.
- * Licensed under the Single Application / Multi Application License.
- * See LICENSE_SINGLE_APP / LICENSE_MULTI_APP in the 'docs' folder for license information on type of purchased license.
- */
-
 import { NbIconLibraries, NbMenuItem } from '@nebular/theme';
 import { Observable, of } from 'rxjs';
 import { Injectable } from '@angular/core';
@@ -24,6 +18,7 @@ export class PagesMenu {
       queue: '<img src="../../assets/icons/Queue.svg">',
       schedule: '<img src="../../assets/icons/Schedule.svg">',
       team: '<img src="../../assets/icons/Team.svg">',
+      config: '<img src="../../assets/icons/config.svg">',
     });
   }
   getMenu(): Observable<NbMenuItem[]> {
@@ -66,7 +61,25 @@ export class PagesMenu {
           {
             title: 'Add Asset',
             link: '/pages/asset/add',
-          }
+          },
+        ],
+      },
+      {
+        title: 'Automations',
+        icon: { icon: 'process', pack: 'custom-icons' },
+        children: [
+          {
+            title: 'All Automations',
+            link: '/pages/automation/list',
+          },
+          {
+            title: 'Add Automation',
+            link: '/pages/automation/add',
+          },
+          {
+            title: 'All Automation Logs',
+            link: '/pages/automationLogs',
+          },
         ],
       },
 
@@ -112,6 +125,10 @@ export class PagesMenu {
             link: '/pages/emaillog/list',
           },
           {
+            title: 'Send Email',
+            link: '/pages/emailaccount/send-email',
+          },
+          {
             title: 'Settings',
             link: '/pages/emailsetting/list',
           },
@@ -133,30 +150,34 @@ export class PagesMenu {
         ],
       },
       {
+        title: 'Integration',
+        icon: { icon: 'process', pack: 'custom-icons' },
+        children: [
+          {
+            title: 'System Events',
+            link: '/pages/system-event/list',
+          },
+          {
+            title: 'Subscriptions',
+            link: '/pages/subscription/list',
+          },
+          {
+            title: 'Add Subscriptions',
+            link: '/pages/subscription/add',
+          },
+          {
+            title: 'Logs',
+            link: '/pages/integration-logs/list',
+          },
+        ],
+      },
+      {
         title: 'Jobs',
         icon: { icon: 'job', pack: 'custom-icons' },
         children: [
           {
             title: 'All Jobs',
             link: '/pages/job/list',
-          },
-        ],
-      },
-      {
-        title: 'Processes',
-        icon: { icon: 'process', pack: 'custom-icons' },
-        children: [
-          {
-            title: 'All Processes',
-            link: '/pages/process/list',
-          },
-          {
-            title: 'Add Process',
-            link: '/pages/process/add',
-          },
-          {
-            title: 'All Process Logs',
-            link: '/pages/processlogs',
           },
         ],
       },
@@ -194,6 +215,24 @@ export class PagesMenu {
           {
             title: 'Add Schedule',
             link: '/pages/schedules/add',
+          },
+        ],
+      },
+      {
+        title: 'Settings',
+        icon: { icon: 'config', pack: 'custom-icons' },
+        children: [
+          {
+            title: 'Configuration',
+            link: '/pages/config/list',
+          },
+          {
+            title: 'Security Fencing',
+            link: '/pages/config/settings',
+          },
+          {
+            title: 'Add Rule',
+            link: '/pages/config/settings/rule/add',
           },
         ],
       },

@@ -11,7 +11,7 @@ import { EmailAccountsService } from '../email-accounts.service';
 @Component({
   selector: 'ngx-all-email-account',
   templateUrl: './all-email-account.component.html',
-  styleUrls: ['./all-email-account.component.scss']
+  styleUrls: ['./all-email-account.component.scss'],
 })
 export class AllEmailAccountComponent implements OnInit {
   isDeleted = false;
@@ -37,6 +37,10 @@ export class AllEmailAccountComponent implements OnInit {
     private toastrService: NbToastrService
   ) {
 
+    this.emailService.getConfigValue().subscribe((data: any) => {
+      console.log(data)
+    })
+
   }
 
   ngOnInit(): void {
@@ -50,7 +54,9 @@ export class AllEmailAccountComponent implements OnInit {
     this.router.navigate(['/pages/emailaccount/add']);
   }
   gotoedit(id) {
-    this.router.navigate(['/pages/emailaccount/edit'], { queryParams: { id: id } });
+    this.router.navigate(['/pages/emailaccount/edit'], {
+      queryParams: { id: id },
+    });
   }
   gotodetail(id) {
     this.router.navigate(['/pages/emailaccount/get-email-id'], {
@@ -62,7 +68,7 @@ export class AllEmailAccountComponent implements OnInit {
     const skip = (this.page.pageNumber - 1) * this.page.pageSize;
     this.feild_name = filter_val + '+' + vale;
     this.emailService
-      .getAllAssetOrder(this.page.pageSize, skip, this.feild_name)
+      .getAllEmailOrder(this.page.pageSize, skip, this.feild_name)
       .subscribe((data: any) => {
         this.showpage = data;
         this.showallEmail = data.items;
@@ -72,22 +78,24 @@ export class AllEmailAccountComponent implements OnInit {
   open2(dialog: TemplateRef<any>, id: any) {
     this.del_id = [];
     this.view_dialog = dialog;
-    this.dialogService.openDialog(dialog)
+    this.dialogService.openDialog(dialog);
     this.del_id = id;
   }
 
   del_agent(ref) {
     this.isDeleted = true;
-  const skip = (this.page.pageNumber - 1) * this.page.pageSize;
-    this.emailService.delAssetbyID(this.del_id).subscribe(() => {
-      this.toastrService.success('Deleted Successfully');
-      ref.close();
-      this.get_allasset(this.page.pageSize, skip);
-    }, () => (this.isDeleted = false)
+    const skip = (this.page.pageNumber - 1) * this.page.pageSize;
+    this.emailService.delAssetbyID(this.del_id).subscribe(
+      () => {
+        this.toastrService.success('Deleted Successfully');
+        ref.close();
+        this.getAllEmail(this.page.pageSize, skip);
+      },
+      () => (this.isDeleted = false)
     );
   }
 
-  get_allasset(top, skip) {
+  getAllEmail(top, skip) {
     this.get_perPage = false;
     this.emailService.getAllEmail(top, skip).subscribe((data: any) => {
       for (const item of data.items) {
@@ -98,12 +106,14 @@ export class AllEmailAccountComponent implements OnInit {
       }
       this.showpage = data;
       this.showallEmail = data.items;
-
       this.page.totalCount = data.totalCount;
-      this.get_perPage = true;
+      if (data.totalCount == 0) {
+        this.get_perPage = false;
+      } else if (data.totalCount != 0) {
+        this.get_perPage = true;
+      }
     });
   }
-
 
   onSortClick(event, fil_val) {
     let target = event.currentTarget,
@@ -138,7 +148,7 @@ export class AllEmailAccountComponent implements OnInit {
     } else if (this.feild_name.length != 0) {
       this.show_perpage_size = true;
       this.emailService
-        .getAllAssetOrder(this.page.pageSize, skip, this.feild_name)
+        .getAllEmailOrder(this.page.pageSize, skip, this.feild_name)
         .subscribe((data: any) => {
           this.showpage = data;
           this.showallEmail = data.items;
@@ -157,10 +167,10 @@ export class AllEmailAccountComponent implements OnInit {
       const top: number = pageSize;
       const skip = (pageNumber - 1) * pageSize;
       if (this.feild_name.length == 0) {
-        this.get_allasset(top, skip);
+        this.getAllEmail(top, skip);
       } else if (this.feild_name.lenght != 0) {
         this.emailService
-          .getAllAssetOrder(top, skip, this.feild_name)
+          .getAllEmailOrder(top, skip, this.feild_name)
           .subscribe((data: any) => {
             this.showpage = data;
             this.showallEmail = data.items;
@@ -171,12 +181,16 @@ export class AllEmailAccountComponent implements OnInit {
       const top: number = this.per_page_num;
       const skip = (pageNumber - 1) * this.per_page_num;
       this.emailService
-        .getAllAssetOrder(top, skip, this.feild_name)
+        .getAllEmailOrder(top, skip, this.feild_name)
         .subscribe((data: any) => {
           this.showpage = data;
           this.showallEmail = data.items;
           this.page.totalCount = data.totalCount;
         });
     }
+  }
+  trackByFn(index: number, item: unknown): number | null {
+    if (!item) return null;
+    return index;
   }
 }

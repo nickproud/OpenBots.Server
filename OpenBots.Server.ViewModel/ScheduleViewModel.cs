@@ -13,8 +13,8 @@ namespace OpenBots.Server.ViewModel
         public DateTime? NextExecution { get; set; }
         public bool? IsDisabled { get; set; }
         public Guid? ProjectId { get; set; }
-        public Guid? ProcessId { get; set; }
-        public string? ProcessName { get; set; }
+        public Guid? AutomationId { get; set; }
+        public string? AutomationName { get; set; }
         public string? TriggerName { get; set; }
         public string? StartingType { get; set; }
         public string? Status { get; set; }
@@ -23,5 +23,6 @@ namespace OpenBots.Server.ViewModel
         public DateTime? CreatedOn { get; set; }
         public string? CreatedBy { get; set; }
         public bool? ScheduleNow { get; set; }
+        public Guid? QueueId { get; set; }
     }
 }

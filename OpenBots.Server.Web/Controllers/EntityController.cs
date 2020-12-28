@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using OpenBots.Server.DataAccess.Exceptions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Azure.ServiceBus;
 
 namespace OpenBots.Server.WebAPI.Controllers
 {
@@ -61,7 +62,7 @@ namespace OpenBots.Server.WebAPI.Controllers
             }
 
             Guid entityId = Guid.NewGuid();
-            if (value.Id == null || value.Id.HasValue || value.Id.Equals(Guid.Empty))
+            if (value.Id == null || !value.Id.HasValue || value.Id.Equals(Guid.Empty))
                 value.Id = entityId;
 
             try
@@ -124,6 +125,7 @@ namespace OpenBots.Server.WebAPI.Controllers
             }
             catch (Exception ex)
             {
+                //if (ex is ServerBusyException || ex.Message.ToLower().Contains("too many requests")) { HttpContext.Response.Headers.Add("Retry-After", "30"); }
                 return ex.GetActionResult();
             }
         }

@@ -21,9 +21,9 @@ namespace OpenBots.Server.DataAccess.Repositories
             return dbContext.Jobs;
         }
 
-        public PaginatedList<JobViewModel> FindAllView(Predicate<JobViewModel> predicate = null, string sortColumn = "", OrderByDirectionType direction = OrderByDirectionType.Ascending, int skip = 0, int take = 100)
+        public PaginatedList<AllJobsViewModel> FindAllView(Predicate<AllJobsViewModel> predicate = null, string sortColumn = "", OrderByDirectionType direction = OrderByDirectionType.Ascending, int skip = 0, int take = 100)
         {
-            PaginatedList<JobViewModel> paginatedList = new PaginatedList<JobViewModel>();
+            PaginatedList<AllJobsViewModel> paginatedList = new PaginatedList<AllJobsViewModel>();
             
             var jobsList = base.Find(null, j => j.IsDeleted == false);
             if (jobsList != null && jobsList.Items != null && jobsList.Items.Count > 0)
@@ -31,9 +31,9 @@ namespace OpenBots.Server.DataAccess.Repositories
                 var jobRecord = from j in jobsList.Items
                                 join a in dbContext.Agents on j.AgentId equals a.Id into table1
                                 from a in table1.DefaultIfEmpty()
-                                join p in dbContext.Processes on j.ProcessId equals p.Id into table2
+                                join p in dbContext.Automations on j.AutomationId equals p.Id into table2
                                 from p in table2.DefaultIfEmpty()
-                                select new JobViewModel
+                                select new AllJobsViewModel
                                 {
                                     Id = j?.Id,
                                     CreatedOn = j?.CreatedOn,
@@ -43,8 +43,8 @@ namespace OpenBots.Server.DataAccess.Repositories
                                     JobStatus = j?.JobStatus,
                                     AgentId = (a == null || a.Id == null) ? Guid.Empty : a.Id.Value,
                                     AgentName = a?.Name,
-                                    ProcessId = (p == null || p.Id == null) ? Guid.Empty : p.Id.Value,
-                                    ProcessName = p?.Name,
+                                    AutomationId = (p == null || p.Id == null) ? Guid.Empty : p.Id.Value,
+                                    AutomationName = p?.Name,
                                     StartTime = j.StartTime,
                                     EndTime = j.EndTime,
                                     EnqueueTime = j.EnqueueTime,
@@ -57,7 +57,7 @@ namespace OpenBots.Server.DataAccess.Repositories
                     else if (direction == OrderByDirectionType.Descending)
                         jobRecord = jobRecord.OrderByDescending(j => j.GetType().GetProperty(sortColumn).GetValue(j)).ToList();
 
-                List<JobViewModel> filterRecord = null;
+                List<AllJobsViewModel> filterRecord = null;
                 if (predicate != null)
                     filterRecord = jobRecord.ToList().FindAll(predicate);
                 else
@@ -95,16 +95,16 @@ namespace OpenBots.Server.DataAccess.Repositories
 
                 jobsLookup.AgentsLookup = agentRecord.OrderBy(p => p.AgentName).ToList();
                 
-                var processRecord = from j in jobsList.Items.GroupBy(j => j.ProcessId).Select(j => j.First()).ToList()
-                                    join p in dbContext.Processes on j.ProcessId equals p.Id into table2
+                var processRecord = from j in jobsList.Items.GroupBy(j => j.AutomationId).Select(j => j.First()).ToList()
+                                    join p in dbContext.Automations on j.AutomationId equals p.Id into table2
                                     from p in table2.DefaultIfEmpty()
-                                    select new JobProcessLookup
+                                    select new JobAutomationLookup
                                     {
-                                        ProcessId = (p == null || p.Id == null) ? Guid.Empty : p.Id.Value,
-                                        ProcessName = p?.Name
+                                        AutomationId = (p == null || p.Id == null) ? Guid.Empty : p.Id.Value,
+                                        AutomationName = p?.Name
                                     };
 
-                jobsLookup.ProcessLookup = processRecord.OrderBy(p => p.ProcessName).ToList();
+                jobsLookup.AutomationLookup = processRecord.OrderBy(p => p.AutomationName).ToList();
             }
             return jobsLookup;
         }

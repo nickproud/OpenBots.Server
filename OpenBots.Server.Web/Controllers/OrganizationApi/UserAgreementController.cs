@@ -16,7 +16,7 @@ namespace OpenBots.Server.WebAPI.Controllers.OrganizationApi
     /// Controller for User Agreements
     /// </summary>
     [V1]
-    [Route("api/v{version:apiVersion}/[controller]")]
+    [Route("api/v{apiVersion:apiVersion}/[controller]")]
     [ApiController]
     [Authorize]
     public class UserAgreementController : ReadOnlyEntityController<UserAgreement>
@@ -35,13 +35,11 @@ namespace OpenBots.Server.WebAPI.Controllers.OrganizationApi
         /// <param name="userManager"></param>
         /// <param name="httpContextAccessor"></param>
         /// <param name="configuration"></param>
-        /// <param name="logger"></param>
         /// <param name="membershipManager"></param>
         /// <param name="personRepository"></param>
         /// <param name="personEmailRepository"></param>
         /// <param name="emailVerificationRepository"></param>
         /// <param name="termsConditionsManager"></param>
-        /// <param name="emailSender"></param>
         public UserAgreementController(
             IUserAgreementRepository repository,
             ApplicationIdentityUserManager userManager,

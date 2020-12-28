@@ -18,10 +18,11 @@ import { NgxUploaderModule } from 'ngx-uploader';
 import { FileSizePipe } from '../pipe/filesize.pipe';
 import { NgxFilesizeModule } from 'ngx-filesize';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { TooltipComponent } from '../../../tooltip/tooltip/tooltip.component';
 import { PreventSpecialCharDirective } from '../../@directive/prevent-special-char.directive';
 import { InputTrimModule } from 'ng2-trim-directive';
 import { TimeagoPipe } from '../services/timeago.pipe';
+import { TooltipComponent } from './tooltip/tooltip.component';
+import { BlockUIModule } from 'ng-block-ui';
 
 @NgModule({
   declarations: [
@@ -32,9 +33,7 @@ import { TimeagoPipe } from '../services/timeago.pipe';
     PreventSpecialCharDirective,
     TimeagoPipe,
   ],
-  imports: [
-    NbTooltipModule,
-  ],
+  imports: [NbTooltipModule],
   exports: [
     CommonModule,
     FormsModule,
@@ -59,6 +58,7 @@ import { TimeagoPipe } from '../services/timeago.pipe';
     PreventSpecialCharDirective,
     InputTrimModule,
     TimeagoPipe,
+    BlockUIModule,
   ],
 })
 export class SharedModule {}

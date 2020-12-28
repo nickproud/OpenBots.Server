@@ -1,14 +1,18 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { NbToastrService } from '@nebular/theme';
 import { environment } from '../../../environments/environment';
+import { BehaviorSubject } from 'rxjs/internal/BehaviorSubject';
 
 @Injectable()
 export class HttpService {
+  countapi = 0;
   get apiUrl(): string {
     return environment.apiUrl;
   }
+  watchtotalSubject = new BehaviorSubject<any>('');
+  currentMessagetotal = this.watchtotalSubject.asObservable();
 
   constructor(
     private http: HttpClient,
@@ -51,5 +55,19 @@ export class HttpService {
   }
   primary(param): void {
     this.toastrService.primary(`${param}`, 'Info');
+  }
+
+  info(param): void {
+    this.toastrService.info(`${param}`, 'Info');
+  }
+
+  /// for 429 error with data sharing flag .
+  watchtotal(error, time) {
+    const errorTime = {
+      error,
+      time,
+    };
+    this.countapi = 1;
+    this.watchtotalSubject.next(errorTime);
   }
 }

@@ -1,0 +1,170 @@
+<nb-card>
+  <nb-card-header>
+    <div class="titleHeader">
+      <div class="titleLeft">
+        <div class="LeftBgIcon">
+          <img class="img-head-logo" src="../../../../assets/icons/Job.svg">
+        </div>
+        <div class="LeftBgText">
+                 <h2>Event Subscriptions</h2>
+          <p>
+               Subscription of Events by External Applications or Automations
+          </p>
+        </div>
+      </div>
+      <div class="titleRight">
+        <button type="button" class="btn btn-primary" (click)="gotoAdd()" >
+           Add Subscription
+        </button>
+      </div>
+    </div>
+  </nb-card-header>
+  <nb-card-body>
+    <form [formGroup]="showjobs">
+      <div class="row filter-row">
+        <div class="col-md-3 col-lg-3">
+          <label for="queueitemtype" class="label col-form-label">Entity</label>
+          <select class="custom-select" (change)="common_Entity($event.target.value)" formControlName="agentId">
+            <option selected></option>
+             <option *ngFor="let item of show_filter_entity" [value]="item">
+              {{ item }}
+            </option>
+           
+          </select>
+        </div>
+        <div class="col-md-3 col-lg-3">
+          <label for="queueitemtype" class="label col-form-label">Event
+          </label>
+          <select class="custom-select" (change)="comon_Event($event.target.value)" formControlName="automationId">
+            <option selected> </option>
+             <option *ngFor="let item of show_filter_event" [value]="item">
+              {{ item}}
+            </option>
+            
+          </select>
+        </div>
+        
+      </div>
+    </form>
+    <table class="table table-bordered">
+      <thead>
+        
+           <tr>
+          <th scope="col">
+            Name
+            <i (click)="onSortClick($event, 'entityName')" [attr.class]="showalleventsubscription | chevron: page.totalCount">
+            </i>
+          </th>
+          <th scope="col">
+            Entity
+            <i (click)="onSortClick($event, 'entityType')" [attr.class]="showalleventsubscription | chevron: page.totalCount"></i>
+          </th>
+          <th scope="col">
+            ID
+            <i (click)="onSortClick($event, 'entityID')" [attr.class]="showalleventsubscription | chevron: page.totalCount"></i>
+          </th>
+          <th scope="col">
+            Event
+            <i (click)="onSortClick($event, 'integrationEventName')" [attr.class]="showalleventsubscription | chevron: page.totalCount"></i>
+          </th>
+          <th scope="col">
+            Transport
+            <i (click)="onSortClick($event, 'transportType')" [attr.class]="showalleventsubscription | chevron: page.totalCount"></i>
+          </th>
+          <th scope="col">View</th>
+            <th scope="col">Edit</th>
+              <th scope="col">Delete</th>
+        </tr>
+      </thead>
+      <tbody>
+         <tr *ngFor="
+            let subscription of showalleventsubscription
+              | paginate
+                : {
+                    id: '1',
+                    itemsPerPage: page.pageSize,
+                    currentPage: page.pageNumber,
+                    totalItems: page.totalCount
+                  };trackBy: trackByFn
+          ">
+          <td>
+            <ngx-tooltip [data]="subscription?.entityName" [size]="40"> </ngx-tooltip>
+          </td>
+          <td scope="row">
+            <ngx-tooltip [data]="subscription?.entityType" [size]="40"> </ngx-tooltip>
+          </td>
+           <td scope="row">
+            <ngx-tooltip [data]="subscription?.entityID" [size]="40"> </ngx-tooltip>
+          </td>
+          <td scope="row">
+            <ngx-tooltip [data]="subscription?.integrationEventName" [size]="40"> </ngx-tooltip>
+          </td>
+           <td scope="row" *ngIf="subscription?.transportType == 1">
+            <ngx-tooltip data="HTTPS" [size]="40"> </ngx-tooltip>
+          </td>
+          <td scope="row" *ngIf="subscription?.transportType == 2">
+            <ngx-tooltip data="Queue" [size]="40"> </ngx-tooltip>
+          </td>
+          
+          <td>
+            <a (click)="gotodetail(subscription.id)">
+              
+              <i class="fa fa-eye" aria-hidden="true"> </i>
+            </a>
+          </td>
+             <td>
+         <a (click)="gotoedit(subscription.id)">
+              <i class="fa fa-edit"> </i>
+            </a>
+          </td>
+          <td>
+            <a (click)="open2(dialog,subscription.id)">
+              <img src="../../../assets/images/del-icon.png" alt="Delete Icon" />
+            </a>
+          </td>
+           
+        </tr>
+         
+      </tbody>
+    </table>
+  </nb-card-body>
+
+  <nb-card-body class="noTopPadding">
+    <div class="row pagerow">
+      <div class="col-md-8 col-lg-8 no-left-padding">
+        <pagination-controls id="1" class="paginateDiv" previousLabel="Prev" nextLabel="Next" responsive="true"
+          (pageChange)="pageChanged($event)" (pageBoundsCorrection)="pageChanged($event)" directionLinks="true"
+          autoHide="true" screenReaderPaginationLabel="Pagination" screenReaderPageLabel="page"
+          screenReaderCurrentLabel="You're on page"></pagination-controls>
+      </div>
+
+      <div class="col-md-4 col-lg-4 text-right no-right-padding">
+        <label class="label">Total {{showpage.totalCount}} / </label>
+        <select class="custom-select per-page-drop" (change)="per_page($event.target.value)">
+          <option *ngFor="let item of itemsPerPage" [value]="item.id">
+            {{ item.name }}
+          </option>
+        </select>
+      </div>
+    </div>
+  </nb-card-body>
+</nb-card>
+
+<ng-template #dialog let-data let-ref="dialogRef">
+  <nb-card>
+    <nb-card-header>
+      <h6>Delete Subscription</h6>
+    </nb-card-header>
+    <nb-card-body>
+      <div aria-labelledby="title">
+        <p>Are you sure you want to delete?</p>
+      </div>
+    </nb-card-body>
+    <nb-card-footer>
+      <button class="btn btn-danger" [disabled]="isDeleted" (click)="delSubscription(ref)">Delete </button>
+      <button class="btn btn-light" style="margin-left: 11px" (click)="ref.close()">
+        Cancel
+      </button>
+    </nb-card-footer>
+  </nb-card>
+</ng-template>

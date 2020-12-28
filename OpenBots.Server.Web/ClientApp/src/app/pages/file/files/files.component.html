@@ -8,7 +8,7 @@
         <div class="LeftBgText">
           <h2>Files</h2>
           <p>
-              Storage used for files that can be shared by processes.
+            Storage used for files that can be shared by automation.
           </p>
         </div>
       </div>
@@ -23,24 +23,21 @@
         <tr>
           <th scope="col">
             Name
-            <i (click)="onSortClick($event, 'name')" [class]="binaryObjectsData | chevron: page.totalCount"></i>
+            <i (click)="onSortClick($event, 'name')" [attr.class]="binaryObjectsData | chevron: page.totalCount"></i>
           </th>
-          <!-- <th scope="col">
-            Content Type
-            <i (click)="onSortClick($event, 'contentType')" [class]="binaryObjectsData | chevron: page.totalCount"></i>
-          </th> -->
+
           <th scope="col">
             Correlation Entity
             <i (click)="onSortClick($event, 'correlationEntity')"
-              [class]="binaryObjectsData | chevron: page.totalCount"></i>
+              [attr.class]="binaryObjectsData | chevron: page.totalCount"></i>
           </th>
           <th scope="col">
             Folder
-            <i (click)="onSortClick($event, 'folder')" [class]="binaryObjectsData | chevron: page.totalCount"></i>
+            <i (click)="onSortClick($event, 'folder')" [attr.class]="binaryObjectsData | chevron: page.totalCount"></i>
           </th>
           <th scope="col">
             Size
-            <i (click)="onSortClick($event, 'sizeInBytes')" [class]="binaryObjectsData | chevron: page.totalCount"></i>
+            <i (click)="onSortClick($event, 'sizeInBytes')" [attr.class]="binaryObjectsData | chevron: page.totalCount"></i>
           </th>
           <th scope="col">View</th>
           <th scope="col">Edit</th>
@@ -55,16 +52,13 @@
                     itemsPerPage: page.pageSize,
                     currentPage: page.pageNumber,
                     totalItems: page.totalCount
-                  }
+                  };trackBy: trackByFn
           ">
           <td>
             <ngx-tooltip [data]=" data?.name " [size]="100">
             </ngx-tooltip>
           </td>
-          <!-- <td>
-            <ngx-tooltip [data]="data?.contentType" [size]="14">
-            </ngx-tooltip>
-          </td> -->
+
           <td>
             <ngx-tooltip [data]="data?.correlationEntity" [size]="20">
             </ngx-tooltip>

@@ -19,7 +19,7 @@ namespace OpenBots.Server.WebAPI.Controllers
     /// Controller for organizations
     /// </summary>
     [V1]
-    [Route("api/v{version:apiVersion}/[controller]")]
+    [Route("api/v{apiVersion:apiVersion}/[controller]")]
     [ApiController]
     [Authorize]
     public class OrganizationsController : EntityController<Organization>
@@ -35,6 +35,7 @@ namespace OpenBots.Server.WebAPI.Controllers
         /// <param name="userManager"></param>
         /// <param name="organizationManager"></param>
         /// <param name="httpContextAccessor"></param>
+        /// <param name="configuration"></param>
         public OrganizationsController(
             IOrganizationRepository repository, 
             IMembershipManager membershipManager,
@@ -311,6 +312,9 @@ namespace OpenBots.Server.WebAPI.Controllers
         /// <returns>Ok response, if the partial organization values have been updated</returns>
         [HttpPatch("{id}")]
         [ProducesResponseType(typeof(IActionResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
         [Produces("application/json")]
         public async Task<IActionResult> Patch(string id,
             [FromBody] JsonPatchDocument<Organization> value)

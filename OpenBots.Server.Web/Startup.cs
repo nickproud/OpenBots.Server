@@ -122,9 +122,6 @@ namespace OpenBots.Server.Web
             services.Configure<ConfigurationValue>(Configuration.GetSection(
                                         ConfigurationValue.Values));
 
-            services.Configure<GlobalQueueMaxRetryCountOptions>(Configuration.GetSection(
-                                        GlobalQueueMaxRetryCountOptions.GlobalQueueMaxRetryCount));
-
             services.AddApplicationInsightsTelemetry();
 
             services.AddLogging(
@@ -345,6 +342,8 @@ namespace OpenBots.Server.Web
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, ILoggerFactory loggerFactory, IConfiguration configuration)
         {
+            var iPFencingOptions = Configuration.GetSection(IPFencingOptions.IPFencing).Get<IPFencingOptions>();
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -365,6 +364,10 @@ namespace OpenBots.Server.Web
                 app.UseSpaStaticFiles();
             }
             app.UseAuthentication();
+            if (iPFencingOptions.IPFencingCheck.Equals("EveryRequest"))
+            {
+                app.UseIPFilter();
+            }
             app.UseMvc();
             app.UseRouting();
             app.UseAuthorization();
@@ -407,7 +410,7 @@ namespace OpenBots.Server.Web
             var webAppUrlOptions = Configuration.GetSection(WebAppUrlOptions.WebAppUrl).Get<WebAppUrlOptions>();
             var options = new DashboardOptions
             {
-                AppPath = webAppUrlOptions.Url,
+                AppPath = webAppUrlOptions.Url, 
                 DashboardTitle = "OpenBots Server",
                 Authorization = new IDashboardAuthorizationFilter[]
                   {
@@ -467,7 +470,7 @@ namespace OpenBots.Server.Web
                 if (string.IsNullOrWhiteSpace(healthcheckAPI))
                     healthcheckAPI = "/healthcheck-api";
 
-                endpoints.MapHealthChecksUI(a => { a.UIPath = healthcheckUI; a.UseRelativeApiPath = true; a.ApiPath = healthcheckAPI; });
+                endpoints.MapHealthChecksUI(a => { a.UIPath = healthcheckUI; a.UseRelativeApiPath = false; a.UseRelativeResourcesPath = false;  a.ApiPath = healthcheckAPI; });
             }
         }
 

@@ -4,6 +4,7 @@ using OpenBots.Server.Model;
 using OpenBots.Server.Model.Core;
 using OpenBots.Server.ViewModel;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -14,19 +15,25 @@ namespace OpenBots.Server.Business
     {
         private readonly IJobRepository repo;
         private readonly IAgentRepository agentRepo;
-        private readonly IProcessRepository processRepo;
+        private readonly IAutomationRepository automationRepo;
+        private readonly IJobParameterRepository jobParameterRepo;
+        private readonly IJobCheckpointRepository jobCheckpointRepo;
 
-        public JobManager(IJobRepository repo, IAgentRepository agentRepo, IProcessRepository processRepo)
+        public JobManager(IJobRepository repo, IAgentRepository agentRepo, IAutomationRepository automationRepo,
+            IJobParameterRepository jobParameterRepository, IJobCheckpointRepository jobCheckpointRepository)
         {
             this.repo = repo;
             this.agentRepo = agentRepo;
-            this.processRepo = processRepo;
+            this.automationRepo = automationRepo;
+            this.jobParameterRepo = jobParameterRepository;
+            this.jobCheckpointRepo = jobCheckpointRepository;
         }
 
         public JobViewModel GetJobView(JobViewModel jobView)
         {
-            jobView.AgentName = agentRepo.GetOne(jobView.AgentId)?.Name;
-            jobView.ProcessName = processRepo.GetOne(jobView.ProcessId)?.Name;
+            jobView.AgentName = agentRepo.GetOne(jobView.AgentId ?? Guid.Empty)?.Name;
+            jobView.AutomationName = automationRepo.GetOne(jobView.AutomationId ?? Guid.Empty)?.Name;
+            jobView.JobParameters = GetJobParameters(jobView.Id ?? Guid.Empty);
 
             return jobView;
         }
@@ -36,7 +43,7 @@ namespace OpenBots.Server.Business
             return repo.GetJobAgentsLookup();
         }
 
-        public PaginatedList<JobViewModel> GetJobAgentsandProcesses(Predicate<JobViewModel> predicate = null, string sortColumn = "", OrderByDirectionType direction = OrderByDirectionType.Ascending, int skip = 0, int take = 100)
+        public PaginatedList<AllJobsViewModel> GetJobAgentsandAutomations(Predicate<AllJobsViewModel> predicate = null, string sortColumn = "", OrderByDirectionType direction = OrderByDirectionType.Ascending, int skip = 0, int take = 100)
         {
             return repo.FindAllView(predicate, sortColumn, direction, skip, take);
         }
@@ -49,23 +56,56 @@ namespace OpenBots.Server.Business
               .OrderBy(j => j.CreatedOn)
               .FirstOrDefault();
 
+            var jobParameters = GetJobParameters(job?.Id ?? Guid.Empty);
+
             NextJobViewModel nextJob = new NextJobViewModel()
             {
                 IsJobAvailable = job == null ? false : true,
-                AssignedJob = job
+                AssignedJob = job,
+                JobParameters = jobParameters
             };
 
             return nextJob;
         }
 
+        public IEnumerable<JobParameter> GetJobParameters(Guid jobId)
+        {
+            var jobParameters = jobParameterRepo.Find(0, 1)?.Items?.Where(p => p.JobId == jobId);
+            return jobParameters;
+        }
+
+        public IEnumerable<JobCheckpoint> GetJobCheckpoints(Guid jobId)
+        {
+            var jobCheckPoints = jobCheckpointRepo.Find(0, 1)?.Items?.Where(p => p.JobId == jobId);
+            return jobCheckPoints;
+        }
+
+        public void DeleteExistingParameters(Guid jobId)
+        {
+            var jobParameters = GetJobParameters(jobId);
+            foreach (var parmeter in jobParameters)
+            {
+                jobParameterRepo.SoftDelete(parmeter.Id ?? Guid.Empty);
+            }
+        }
+
+        public void DeleteExistingCheckpoints(Guid jobId)
+        {
+            var jobCheckpoints = GetJobCheckpoints(jobId);
+            foreach (var checkpoint in jobCheckpoints)
+            {
+                jobCheckpointRepo.SoftDelete(checkpoint.Id ?? Guid.Empty);
+            }
+        }
+
         public string GetCsv(Job[] jobs)
         {
-            string csvString = "JobID,Message,IsSuccessful,StartTime,EndTime,EnqueueTime,DequeueTime,JobStatus,AgentID,ProcessID";
+            string csvString = "JobID,Message,IsSuccessful,StartTime,EndTime,EnqueueTime,DequeueTime,JobStatus,AgentID,AutomationID";
             foreach (Job job in jobs)
             {
 
                 csvString += Environment.NewLine + string.Join(",", job.Id, job.Message, job.IsSuccessful, job.StartTime, job.EndTime,
-                    job.EnqueueTime, job.DequeueTime, job.JobStatus,job.AgentId, job.ProcessId);
+                    job.EnqueueTime, job.DequeueTime, job.JobStatus,job.AgentId, job.AutomationId);
             }
 
             return csvString;

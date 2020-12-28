@@ -2,9 +2,9 @@ import { RouterModule, Routes } from '@angular/router';
 import { NgModule } from '@angular/core';
 import { PagesComponent } from './pages.component';
 import { NotFoundComponent } from './miscellaneous/not-found/not-found.component';
-import { ECommerceComponent } from './e-commerce/e-commerce.component';
 import { LoginGuard } from '../@core/guards/login.guard';
 import { TermGuard } from '../@core/guards/term.guard';
+import { DashboardComponent } from './Dashboard/Dashboard.component';
 
 const routes: Routes = [
   {
@@ -14,7 +14,7 @@ const routes: Routes = [
     children: [
       {
         path: 'dashboard',
-        component: ECommerceComponent,
+        component: DashboardComponent,
         canActivate: [TermGuard, LoginGuard],
       },
 
@@ -94,23 +94,51 @@ const routes: Routes = [
         canActivate: [LoginGuard],
       },
       {
-        path: 'process',
+        path: 'automation',
         loadChildren: () =>
-          import('./process/process.module').then((mod) => mod.ProcessModule),
+          import('./automation/automation.module').then(
+            (mod) => mod.AutomationModule
+          ),
         canActivate: [LoginGuard],
       },
       {
         path: 'refreshhangfire',
         loadChildren: () =>
-          import('./refresh-hangfire/refresh-hangfire.module').then((mod) => mod.RefreshHangfireModule),
+          import('./refresh-hangfire/refresh-hangfire.module').then(
+            (mod) => mod.RefreshHangfireModule
+          ),
         canActivate: [LoginGuard],
       },
 
       {
-        path: 'processlogs',
+        path: 'automationLogs',
         loadChildren: () =>
-          import('./process-logs/process-logs.module').then(
-            (mod) => mod.ProcessLogsModule
+          import('./automation-logs/automation-logs.module').then(
+            (mod) => mod.AutomationLogsModule
+          ),
+        canActivate: [LoginGuard],
+      },
+      {
+        path: 'system-event',
+        loadChildren: () =>
+          import('./system-event/system-event.module').then(
+            (mod) => mod.SyetemEventModule
+          ),
+        canActivate: [LoginGuard],
+      },
+      {
+        path: 'integration-logs',
+        loadChildren: () =>
+          import('./integration-logs/integration-logs.module').then(
+            (mod) => mod.IntegrationLogsModule
+          ),
+        canActivate: [LoginGuard],
+      },
+      {
+        path: 'subscription',
+        loadChildren: () =>
+          import('./subscription/subscription.module').then(
+            (mod) => mod.SubscriptionModule
           ),
         canActivate: [LoginGuard],
       },
@@ -127,6 +155,14 @@ const routes: Routes = [
         loadChildren: () =>
           import('./schedule/schedule.module').then(
             (mod) => mod.ScheduleModule
+          ),
+        canActivate: [LoginGuard],
+      },
+      {
+        path: 'config',
+        loadChildren: () =>
+          import('./config-value/config-value.module').then(
+            (mod) => mod.ConfigValueModule
           ),
         canActivate: [LoginGuard],
       },
