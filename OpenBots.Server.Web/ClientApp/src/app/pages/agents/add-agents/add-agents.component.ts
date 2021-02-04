@@ -3,6 +3,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { NbToastrService } from '@nebular/theme';
 import { AgentsService } from '../agents.service';
 import { Router } from '@angular/router';
+import { IpVersion, RxwebValidators } from '@rxweb/reactive-form-validators';
 
 @Component({
   selector: 'ngx-add-agents',
@@ -11,13 +12,15 @@ import { Router } from '@angular/router';
 })
 export class AddAgentsComponent implements OnInit {
   addagent: FormGroup;
+  checked = false;
   submitted = false;
   cred_value: any = [];
   value = ['JSON', 'Number', 'Text'];
+  ipVersion = 'V4';
   constructor(
     private formBuilder: FormBuilder,
-    protected agentService: AgentsService,
-    protected router: Router,
+    private agentService: AgentsService,
+    private router: Router,
     private toastrService: NbToastrService
   ) {}
 
@@ -32,26 +35,15 @@ export class AddAgentsComponent implements OnInit {
           Validators.pattern('^[A-Za-z0-9_.-]{3,100}$'),
         ],
       ],
-      machineName: [
-        '',
-        [
-          Validators.required,
-          Validators.pattern(
-            /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])?(.\\)?(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/
-          ),
-        ],
-      ],
+      machineName: [''],
       macAddresses: [''],
-      ipAddresses: [
-        '',
-        Validators.pattern(
-          '^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?).){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)|(::[1])$'
-        ),
-      ],
+      ipAddresses: ['', [RxwebValidators.ip({ version: IpVersion.V4 })]],
       isEnabled: [true],
-      CredentialId: ['', Validators.required],
-      userName: ['', Validators.required],
-      password: ['', Validators.required],
+      CredentialId: ['', [Validators.required]],
+      userName: ['', [Validators.required]],
+      password: ['', [Validators.required]],
+      ipOption: ['ipv4'],
+      isEnhancedSecurity: false,
     });
 
     this.get_cred();
@@ -64,6 +56,25 @@ export class AddAgentsComponent implements OnInit {
   get f() {
     return this.addagent.controls;
   }
+  check(checked: boolean) {
+    this.checked = checked;
+    if (checked) {
+      this.addagent
+        .get('macAddresses')
+        .setValidators([
+          Validators.required,
+          Validators.pattern('^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'),
+        ]);
+      this.addagent.get('ipAddresses').setValidators([Validators.required]);
+      this.addagent.get('macAddresses').updateValueAndValidity();
+      this.addagent.get('ipAddresses').updateValueAndValidity();
+    } else {
+      this.addagent.get('ipAddresses').clearValidators();
+      this.addagent.get('ipAddresses').updateValueAndValidity();
+      this.addagent.get('macAddresses').clearValidators();
+      this.addagent.get('macAddresses').updateValueAndValidity();
+    }
+  }
 
   onSubmit() {
     this.submitted = true;
@@ -71,13 +82,12 @@ export class AddAgentsComponent implements OnInit {
       return;
     }
     this.agentService.addAgent(this.addagent.value).subscribe(
-      (data) => {
+      () => {
         this.toastrService.success('Agent added successfully', 'Success');
         this.router.navigate(['pages/agents/list']);
       },
-      (error) => {
+      () => {
         this.submitted = false;
-        console.log('error', error.error);
       }
     );
   }
@@ -102,6 +112,30 @@ export class AddAgentsComponent implements OnInit {
     if (key === 32) {
       event.preventDefault();
       return false;
+    }
+  }
+
+  radioSetValidator(value: string): void {
+    this.addagent.get('ipAddresses').clearValidators();
+    this.addagent.get('ipAddresses').reset();
+    if (value === 'ipv4') {
+      this.ipVersion = 'V4';
+      this.addagent
+        .get('ipAddresses')
+        .setValidators([
+          Validators.required,
+          RxwebValidators.ip({ version: IpVersion.V4 }),
+        ]);
+      this.addagent.get('ipAddresses').updateValueAndValidity();
+    } else {
+      this.ipVersion = 'V6';
+      this.addagent
+        .get('ipAddresses')
+        .setValidators([
+          Validators.required,
+          RxwebValidators.ip({ version: IpVersion.V6 }),
+        ]);
+      this.addagent.get('ipAddresses').updateValueAndValidity();
     }
   }
 }

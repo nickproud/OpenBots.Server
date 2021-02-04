@@ -7,8 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using OpenBots.Server.Web.Hubs;
 using OpenBots.Server.Model.Configuration;
 using OpenBots.Server.DataAccess.Repositories.Interfaces;
-using OpenBots.Server.Model.Webhooks;
 using OpenBots.Server.Web.Webhooks;
+using OpenBots.Server.Business.Interfaces;
+using OpenBots.Server.DataAccess.Repositories.File;
+using OpenBots.Server.WebAPI.Controllers;
 
 namespace OpenBots.Server.Web
 {
@@ -16,7 +18,7 @@ namespace OpenBots.Server.Web
     {
         public static void ConfigureServices(IServiceCollection services)
         {
-            //Repositories and Managers
+            //component repositories and managers
             services.AddTransient(typeof(IAccessRequestRepository), typeof(AccessRequestRepository));
             services.AddTransient(typeof(IOrganizationRepository), typeof(OrganizationRepository));
 
@@ -24,6 +26,7 @@ namespace OpenBots.Server.Web
             services.AddTransient(typeof(IOrganizationMemberRepository), typeof(OrganizationMemberRepository));
             services.AddTransient(typeof(IOrganizationUnitMemberRepository), typeof(OrganizationUnitMemberRepository));
             services.AddTransient(typeof(IOrganizationSettingRepository), typeof(OrganizationSettingRepository));
+            services.AddTransient(typeof(IOrganizationSettingManager), typeof(OrganizationSettingManager));
 
             services.AddTransient(typeof(IPersonRepository), typeof(PersonRepository));
             services.AddTransient(typeof(IPersonEmailRepository), typeof(PersonEmailRepository));
@@ -31,7 +34,8 @@ namespace OpenBots.Server.Web
             services.AddTransient(typeof(IAspNetUsersRepository), typeof(AspNetUsersRepository));
             services.AddTransient(typeof(IAutomationRepository), typeof(AutomationRepository));
             services.AddTransient(typeof(IScheduleRepository), typeof(ScheduleRepository));
-
+            services.AddTransient(typeof(IScheduleManager), typeof(ScheduleManager));
+            services.AddTransient(typeof(IScheduleParameterRepository), typeof(ScheduleParameterRepository));
 
             services.AddTransient(typeof(IMembershipManager), typeof(MembershipManager));
             services.AddTransient(typeof(IAccessRequestsManager), typeof(AccessRequestsManager));
@@ -39,7 +43,6 @@ namespace OpenBots.Server.Web
             services.AddTransient(typeof(IPasswordPolicyRepository), typeof(PasswordPolicyRepository));
             services.AddTransient(typeof(IOrganizationManager), typeof(OrganizationManager));
             services.AddTransient(typeof(IAutomationManager), typeof(AutomationManager));
-            services.AddTransient(typeof(IScheduleManager), typeof(ScheduleManager));
 
             services.AddTransient(typeof(ILookupValueRepository), typeof(LookupValueRepository));
             services.AddTransient(typeof(IApplicationVersionRepository), typeof(ApplicationVersionRepository));
@@ -50,6 +53,7 @@ namespace OpenBots.Server.Web
             services.AddTransient(typeof(IAgentRepository), typeof(AgentRepository));
             services.AddTransient(typeof(IAgentManager), typeof(AgentManager));
             services.AddTransient(typeof(IAssetRepository), typeof(AssetRepository));
+            services.AddTransient(typeof(IAssetManager), typeof(AssetManager));
 
             services.AddTransient(typeof(IJobRepository), typeof(JobRepository));
             services.AddTransient(typeof(IJobManager), typeof(JobManager));
@@ -69,14 +73,13 @@ namespace OpenBots.Server.Web
             services.AddTransient(typeof(IAutomationLogManager), typeof(AutomationLogManager));
             services.AddTransient<IHttpContextAccessor, HttpContextAccessor>();
             services.AddTransient(typeof(IBinaryObjectManager), typeof(BinaryObjectManager));
-            services.AddTransient(typeof(IEmailAttachmentRepository), typeof(EmailAttachmentRepository));
             services.AddTransient(typeof(IAutomationVersionRepository), typeof(AutomationVersionRepository));
             services.AddTransient(typeof(IConfigurationValueRepository), typeof(ConfigurationValueRepository));
             services.AddTransient(typeof(IIPFencingRepository), typeof(IPFencingRepository));
             services.AddTransient(typeof(IIPFencingManager), typeof(IPFencingManager));
             services.AddTransient(typeof(IQueueItemAttachmentRepository), typeof(QueueItemAttachmentRepository));
 
-            //WebHooks
+            //webHooks
             services.AddTransient(typeof(IIntegrationEventRepository), typeof(IntegrationEventRepository));
             services.AddTransient(typeof(IIntegrationEventLogRepository), typeof(IntegrationEventLogRepository));
             services.AddTransient(typeof(IIntegrationEventSubscriptionRepository), typeof(IntegrationEventSubscriptionRepository));
@@ -84,14 +87,14 @@ namespace OpenBots.Server.Web
             services.AddTransient(typeof(IIntegrationEventSubscriptionAttemptManager), typeof(IntegrationEventSubscriptionAttemptManager));
 
 
-            //Blob Storage
+            //blob storage
             services.AddTransient(typeof(IBlobStorageAdapter), typeof(BlobStorageAdapter));
             services.AddTransient(typeof(IFileSystemAdapter), typeof(FileSystemAdapter));
             services.AddTransient(typeof(IDirectoryManager), typeof(DirectoryManager));
             services.AddTransient(typeof(IWebhookPublisher), typeof(WebhookPublisher));
             services.AddTransient(typeof(IWebhookSender), typeof(WebhookSender));
 
-            //Email Services
+            //email services
             services.AddTransient(typeof(EmailSettings), typeof(EmailSettings));
             services.AddTransient(typeof(EmailAccount), typeof(EmailAccount));
             services.AddTransient(typeof(ISendEmailChore), typeof(AzureSendEmailChore));
@@ -100,6 +103,13 @@ namespace OpenBots.Server.Web
             services.AddTransient(typeof(IEmailRepository), typeof(EmailRepository));
             services.AddTransient(typeof(IEmailSettingsRepository), typeof(EmailSettingsRepository));
             services.AddTransient(typeof(IHubManager), typeof(HubManager));
+            services.AddTransient(typeof(IEmailAttachmentRepository), typeof(EmailAttachmentRepository));
+
+            //files
+            services.AddTransient(typeof(IFileAttributeRepository), typeof(FileAttributeRepository));
+            services.AddTransient(typeof(IServerDriveRepository), typeof(ServerDriveRepository));
+            services.AddTransient(typeof(IServerFolderRepository), typeof(ServerFolderRepository));
+            services.AddTransient(typeof(IServerFileRepository), typeof(ServerFileRepository));
         }
     }
 }

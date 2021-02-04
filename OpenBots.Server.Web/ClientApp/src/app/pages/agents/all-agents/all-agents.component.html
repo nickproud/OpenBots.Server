@@ -9,7 +9,7 @@
           <h2>Agents</h2>
           <p>
             Agents are physical/virtual machines that will be executing
-            automation .
+            automation.
           </p>
         </div>
       </div>
@@ -18,7 +18,7 @@
           Add Agent
         </button>
       </div>
-    </div> 
+    </div>
   </nb-card-header>
   <nb-card-body>
     <table class="table table-bordered">
@@ -31,7 +31,7 @@
 
           <th scope="col">
             Status
-            <i (click)="onSortClick($event, 'lastReportedStatus')" class="my-icon fa fa-chevron-up"></i>
+            <i (click)="onSortClick($event, 'status')" class="my-icon fa fa-chevron-up"></i>
           </th>
           <th scope="col">
             Health
@@ -65,7 +65,7 @@
             <p (click)="gotodetail(agent.id)">No Name</p>
           </td>
           <td scope="row">
-            <ngx-tooltip [data]="agent?.lastReportedStatus" [size]="8">
+            <ngx-tooltip [data]="agent?.status" [size]="20">
             </ngx-tooltip>
           </td>
           <td scope="row" *ngIf="agent.isHealthy == false">

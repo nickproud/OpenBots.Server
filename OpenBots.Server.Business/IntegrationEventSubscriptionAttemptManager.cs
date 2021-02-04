@@ -24,7 +24,7 @@ namespace OpenBots.Server.Business
             int? attemptCount = 0;
             var previousAttempt = GetLastAttempt(currentAttempt);
 
-            //If no attempt exists, then this is the first attempt
+            //if no attempt exists, then this is the first attempt
             if (previousAttempt == null)
             {
                 attemptCount = 1;
@@ -37,7 +37,7 @@ namespace OpenBots.Server.Business
                 repo.Update(previousAttempt);
             }
             currentAttempt.AttemptCounter = attemptCount;
-            currentAttempt.CreatedOn = DateTime.Now;
+            currentAttempt.CreatedOn = DateTime.UtcNow;
             currentAttempt.Id = Guid.NewGuid();
             repo.Add(currentAttempt);
             return attemptCount;

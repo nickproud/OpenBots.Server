@@ -169,6 +169,16 @@
             Type of automation that will be executed (i.e. OpenBots, Python, etc.)
             </summary>
         </member>
+        <member name="P:OpenBots.Server.Model.Automation.AverageSuccessfulExecutionInMinutes">
+            <summary>
+            Average execution time in minutes of successful jobs that execute this process 
+            </summary>
+        </member>
+        <member name="P:OpenBots.Server.Model.Automation.AverageUnSuccessfulExecutionInMinutes">
+            <summary>
+            Average execution time in minutes of unsuccessful jobs that execute this process 
+            </summary>
+        </member>
         <member name="T:OpenBots.Server.Model.BinaryObject">
             <summary>
             Binary Object data model
@@ -289,26 +299,26 @@
         </member>
         <member name="F:OpenBots.Server.Model.Core.OrderByDirectionType.Ascending">
             <summary>
-            sort data in ascending order
+            Sort data in ascending order
             </summary>
         </member>
         <member name="F:OpenBots.Server.Model.Core.OrderByDirectionType.Descending">
             <summary>
-            sort data in descending order
+            Sort data in descending order
             </summary>
         </member>
         <member name="T:OpenBots.Server.Model.Identity.Person">
             <summary>
             Represents a Person
             </summary>
-            <seealso cref="T:OpenBots.Server.Model.Core.NamedEntity" />
+            <seealso cref="T:OpenBots.Server.Model.Core.NamedEntity"/>
         </member>
         <member name="P:OpenBots.Server.Model.Identity.Person.FirstName">
             <summary>
-            First Name of the Person
+            First name of the Person
             </summary>
             <value>
-            The first name.
+            The first name
             </value>
         </member>
         <member name="T:OpenBots.Server.Model.INonAuditable">
@@ -318,11 +328,11 @@
         </member>
         <member name="T:OpenBots.Server.Model.UsageType">
             <summary>
-            Stores the usage type for the IPFencing.
+            Stores the usage type for the IPFencing
             </summary>
             <remarks>
-            If usage type is Deny, then all IPs except the ones specified are denied. <br/>
-            If usage type is Allowed, then all IPs except the ones specified are allowed.
+            If usage type is Deny, then all IPs except the ones specified are denied<br/>
+            If usage type is Allowed, then all IPs except the ones specified are allowed
             </remarks>
         </member>
         <member name="T:OpenBots.Server.Model.RuleType">
@@ -330,7 +340,7 @@
             Represents the type of rule that is being stored
             </summary>
             <remarks>
-            IP rule values can be stored as individual addresses or as ranges. <br/>
+            IP rule values can be stored as individual addresses or as ranges<br/>
             Headers are checked after IP values and must be exist in the http request
             </remarks>
         </member>
@@ -406,6 +416,52 @@
         <member name="P:OpenBots.Server.Model.Options.CorsPolicyOptions.PolicyName">
             <summary>
             Specifies the name of the policy to be created
+            </summary>
+        </member>
+        <member name="T:OpenBots.Server.Model.Options.FeatureManagementOptions">
+            <summary>
+            Options for managaing feature flags
+            </summary>
+            <remarks> Feature flags allow us to enable/disable features using appSettings</remarks>
+        </member>
+        <member name="F:OpenBots.Server.Model.Options.FeatureManagementOptions.FeatureManagement">
+            <summary>
+            Configuration Name in App Settings For FeatureManagementOptions
+            </summary>
+        </member>
+        <member name="P:OpenBots.Server.Model.Options.FeatureManagementOptions.IPFencing">
+            <summary>
+            Used to enable the IPFencing feature in the application
+            </summary>
+        </member>
+        <member name="P:OpenBots.Server.Model.Options.FeatureManagementOptions.Swagger">
+            <summary>
+            Used to enable the Swagger documentation feature in the application
+            </summary>
+        </member>
+        <member name="P:OpenBots.Server.Model.Options.FeatureManagementOptions.Hangfire">
+            <summary>
+            Used to enable the Hangfire feature in the application
+            </summary>
+        </member>
+        <member name="P:OpenBots.Server.Model.Options.FeatureManagementOptions.HealthChecks">
+            <summary>
+            Used to enable the HealthChecks-UI and HealthChecks-API 
+            </summary>
+        </member>
+        <member name="P:OpenBots.Server.Model.Options.FeatureManagementOptions.Emails">
+            <summary>
+            Used to enable the Emails API 
+            </summary>
+        </member>
+        <member name="P:OpenBots.Server.Model.Options.FeatureManagementOptions.Files">
+            <summary>
+            Used to enable the BinaryObjects API
+            </summary>
+        </member>
+        <member name="P:OpenBots.Server.Model.Options.FeatureManagementOptions.Queues">
+            <summary>
+            Used to enable the Queues API
             </summary>
         </member>
         <member name="T:OpenBots.Server.Model.Options.HealthCheckSetupOptions">
@@ -635,119 +691,129 @@
             Maximum number of QueueItem retries
             </summary>
         </member>
-        <member name="T:OpenBots.Server.Model.QueueItemModel">
+        <member name="T:OpenBots.Server.Model.QueueItem">
             <summary>
             QueueItem Model
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.IsLocked">
+        <member name="P:OpenBots.Server.Model.QueueItem.IsLocked">
             <summary>
             Whether a QueueItem is locked by a job or not
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.LockedOnUTC">
+        <member name="P:OpenBots.Server.Model.QueueItem.LockedOnUTC">
             <summary>
             When the QueueItem was locked
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.LockedUntilUTC">
+        <member name="P:OpenBots.Server.Model.QueueItem.LockedUntilUTC">
             <summary>
             When to lock QueueItem if still being executed
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.LockedBy">
+        <member name="P:OpenBots.Server.Model.QueueItem.LockedBy">
             <summary>
             Which Agent locked the QueueItem
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.QueueId">
+        <member name="P:OpenBots.Server.Model.QueueItem.QueueId">
             <summary>
             Which Queue the QueueItem belongs to
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.Type">
+        <member name="P:OpenBots.Server.Model.QueueItem.Type">
             <summary>
             Format of Data
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.JsonType">
+        <member name="P:OpenBots.Server.Model.QueueItem.JsonType">
             <summary>
             Describes the type of item the queue is dealing with
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.DataJson">
+        <member name="P:OpenBots.Server.Model.QueueItem.DataJson">
             <summary>
             Data in JSON or Text format
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.State">
+        <member name="P:OpenBots.Server.Model.QueueItem.State">
             <summary>
             Failed, Expired, Successful, New
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.StateMessage">
+        <member name="P:OpenBots.Server.Model.QueueItem.StateMessage">
             <summary>
             Message given to user after state of QueueItem was changed
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.LockTransactionKey">
+        <member name="P:OpenBots.Server.Model.QueueItem.LockTransactionKey">
             <summary>
             Guid generated when item is dequeued
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.LockedEndTimeUTC">
+        <member name="P:OpenBots.Server.Model.QueueItem.LockedEndTimeUTC">
             <summary>
             Tells when QueueItem has been executed and when IsLocked has been turned back to false
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.RetryCount">
+        <member name="P:OpenBots.Server.Model.QueueItem.RetryCount">
             <summary>
             Number of time a QueueItem has been retried
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.Priority">
+        <member name="P:OpenBots.Server.Model.QueueItem.Priority">
             <summary>
             Priority of when queue item should be dequeued
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.ExpireOnUTC">
+        <member name="P:OpenBots.Server.Model.QueueItem.ExpireOnUTC">
             <summary>
             DateTime the queue item will expire on
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.PostponeUntilUTC">
+        <member name="P:OpenBots.Server.Model.QueueItem.PostponeUntilUTC">
             <summary>
             DateTime to postpone the queue item from being processed until
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.ErrorCode">
+        <member name="P:OpenBots.Server.Model.QueueItem.ErrorCode">
             <summary>
             Error Code received when processing a queue item
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.ErrorMessage">
+        <member name="P:OpenBots.Server.Model.QueueItem.ErrorMessage">
             <summary>
             Error message received when processing a queue item
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.ErrorSerialized">
+        <member name="P:OpenBots.Server.Model.QueueItem.ErrorSerialized">
             <summary>
             ErrorCode and ErrorMessage serialized into JSON string
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.Source">
+        <member name="P:OpenBots.Server.Model.QueueItem.Source">
             <summary>
             System of event that was raised (ex: "Employee.Onboarded")
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.Event">
+        <member name="P:OpenBots.Server.Model.QueueItem.Event">
             <summary>
             Event raised from an application (ex: "New employee joins the company.")
             </summary>
         </member>
-        <member name="P:OpenBots.Server.Model.QueueItemModel.ResultJSON">
+        <member name="P:OpenBots.Server.Model.QueueItem.ResultJSON">
             <summary>
             Result of the processed queue item
+            </summary>
+        </member>
+        <member name="P:OpenBots.Server.Model.QueueItem.PayloadSizeInBytes">
+            <summary>
+            Total bytes of all attached files
+            </summary>
+        </member>
+        <member name="T:OpenBots.Server.Model.ScheduleParameter">
+            <summary>
+            Stores the values corresponding to a schedule's parameters
             </summary>
         </member>
     </members>

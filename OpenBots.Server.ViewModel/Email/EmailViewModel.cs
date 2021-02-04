@@ -1,11 +1,10 @@
-﻿using OpenBots.Server.Model.Configuration;
-using OpenBots.Server.Model.Core;
+﻿using OpenBots.Server.Model.Core;
 using System;
 using System.Collections.Generic;
 
 namespace OpenBots.Server.ViewModel.Email
 {
-    public class EmailViewModel : Entity, IViewModel<EmailModel, EmailViewModel>
+    public class EmailViewModel : Entity, IViewModel<Model.Configuration.Email, EmailViewModel>
     {
         public Guid? EmailAccountId { get; set; }
         public DateTime? SentOnUTC { get; set; }
@@ -20,7 +19,7 @@ namespace OpenBots.Server.ViewModel.Email
         public Guid? ReplyToEmailId { get; set; }
         public List<EmailAttachment>? Attachments { get; set; }
 
-        public EmailViewModel Map(EmailModel entity)
+        public EmailViewModel Map(Model.Configuration.Email entity)
         {
             EmailViewModel emailViewModel = new EmailViewModel()
             {

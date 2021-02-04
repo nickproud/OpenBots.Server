@@ -36,7 +36,7 @@ export class AddEmailAccountComponent implements OnInit {
       fromName: [''],
       host: [''],
       name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(100), Validators.pattern('^[A-Za-z0-9_.-]{3,100}$')]],
-      passwordHash: [''],
+      encryptedPassword: [''],
       port: [''],
       provider: ['', [Validators.required]],
       username: [''],
@@ -57,7 +57,7 @@ export class AddEmailAccountComponent implements OnInit {
 
 
   gotoaudit() {
-    this.router.navigate(['/pages/change-log/list'], { queryParams: { PageName: 'OpenBots.Server.Model.email', id: this.showEmail.id } })
+    this.router.navigate(['/pages/change-log/list'], { queryParams: { PageName: 'email', id: this.showEmail.id } })
   }
 
 

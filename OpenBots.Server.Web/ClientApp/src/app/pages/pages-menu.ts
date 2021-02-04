@@ -22,7 +22,7 @@ export class PagesMenu {
     });
   }
   getMenu(): Observable<NbMenuItem[]> {
-    const dashboardMenu: NbMenuItem[] = [
+    const menu: NbMenuItem[] = [
       {
         title: 'Dashboard',
         icon: { icon: 'dashboard', pack: 'custom-icons' },
@@ -30,9 +30,6 @@ export class PagesMenu {
         home: true,
         children: undefined,
       },
-    ];
-
-    const menu: NbMenuItem[] = [
       {
         title: 'Agents',
         icon: { icon: 'agent', pack: 'custom-icons' },
@@ -191,12 +188,12 @@ export class PagesMenu {
             link: '/pages/queueitems',
           },
           {
-            title: 'Add Queue Item',
-            link: '/pages/queueitems/new',
-          },
-          {
             title: 'All Queues',
             link: '/pages/queueslist',
+          },
+          {
+            title: 'Add Queue Item',
+            link: '/pages/queueitems/new',
           },
           {
             title: 'Add Queue',
@@ -252,6 +249,6 @@ export class PagesMenu {
         ],
       },
     ];
-    return of([...dashboardMenu, ...menu]);
+    return of([...menu]);
   }
 }

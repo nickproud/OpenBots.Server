@@ -1,11 +1,10 @@
 ﻿using Microsoft.AspNetCore.Http;
-using OpenBots.Server.Model.Configuration;
 using OpenBots.Server.Model.Core;
 using System;
 
 namespace OpenBots.Server.ViewModel.Email
 {
-    public class UpdateEmailViewModel : IViewModel<EmailModel, UpdateEmailViewModel>
+    public class UpdateEmailViewModel : IViewModel<Model.Configuration.Email, UpdateEmailViewModel>
     {
 
         public DateTime? SentOnUTC { get; set; }
@@ -21,7 +20,7 @@ namespace OpenBots.Server.ViewModel.Email
         public Guid? EmailAccountId { get; set; }
         public IFormFile[]? Files { get; set; }
 
-        public UpdateEmailViewModel Map(EmailModel entity)
+        public UpdateEmailViewModel Map(Model.Configuration.Email entity)
         {
             UpdateEmailViewModel emailViewModel = new UpdateEmailViewModel()
             {

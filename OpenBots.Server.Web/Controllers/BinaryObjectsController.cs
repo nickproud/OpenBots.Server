@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
+using Microsoft.FeatureManagement.Mvc;
 using OpenBots.Server.Business;
 using OpenBots.Server.DataAccess.Repositories;
 using OpenBots.Server.Model;
 using OpenBots.Server.Model.Attributes;
 using OpenBots.Server.Model.Core;
+using OpenBots.Server.Model.Options;
 using OpenBots.Server.Security;
 using OpenBots.Server.ViewModel;
 using OpenBots.Server.Web.Webhooks;
@@ -26,6 +28,7 @@ namespace OpenBots.Server.Web.Controllers
     [Route("api/v{apiVersion:apiVersion}/[controller]")]
     [ApiController]
     [Authorize]
+    [FeatureGate(MyFeatureFlags.Files)]
     public class BinaryObjectsController : EntityController<BinaryObject>
     {
         private readonly IBinaryObjectManager binaryObjectManager;
@@ -39,6 +42,7 @@ namespace OpenBots.Server.Web.Controllers
         /// <param name="userManager"></param>
         /// <param name="binaryObjectManager"></param>
         /// <param name="httpContextAccessor"></param>
+        /// <param name="webhookPublisher"></param>
         public BinaryObjectsController(
             IBinaryObjectRepository repository,
             IMembershipManager membershipManager,
@@ -46,7 +50,6 @@ namespace OpenBots.Server.Web.Controllers
             IBinaryObjectManager binaryObjectManager,
             IHttpContextAccessor httpContextAccessor,
             IConfiguration configuration,
-            IOrganizationManager organizationManager,
             IWebhookPublisher webhookPublisher) : base(repository, userManager, httpContextAccessor, membershipManager, configuration)
         {
             this.binaryObjectManager = binaryObjectManager;
@@ -209,7 +212,7 @@ namespace OpenBots.Server.Web.Controllers
                 if (string.IsNullOrEmpty(existingBinaryObject.Folder))
                     existingBinaryObject.Folder = apiComponent;
 
-                //Find relative directory where binary object is being saved
+                //find relative directory where binary object is being saved
                 string filePath = Path.Combine("BinaryObjects", organizationId, apiComponent, existingBinaryObject.Id.ToString());
                 if (filePath != null)
                 {
@@ -399,7 +402,7 @@ namespace OpenBots.Server.Web.Controllers
                     existingBinaryObject.SizeInBytes = request.File.Length;
                     existingBinaryObject.Folder = request.Folder;
 
-                    //Update file in OpenBots.Server.Web using relative directory
+                    //update file in OpenBots.Server.Web using relative directory
                     binaryObjectManager.Update(request.File, organizationId, apiComponent, Guid.Parse(id));
                     await binaryObjectManager.UpdateEntity(request.File, existingBinaryObject.StoragePath, existingBinaryObject.Id.ToString(), apiComponent, existingBinaryObject.Folder, existingBinaryObject.Name);
                 }

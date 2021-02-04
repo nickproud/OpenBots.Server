@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OpenBots.Server.ViewModel
 {
-    public class AgentViewModel : IViewModel<AgentModel, AgentViewModel>
+    public class AgentViewModel : IViewModel<Agent, AgentViewModel>
     {
         [Display(Name = "Id")]
         public Guid? Id { get; set; }
@@ -26,8 +26,10 @@ namespace OpenBots.Server.ViewModel
         public bool IsConnected { get; set; }
         public Guid? CredentialId { get; set; }
         public string CredentialName { get; set; }
+        public string IPOption { get; set; }
+        public bool IsEnhancedSecurity { get; set; }
 
-        public AgentViewModel Map(AgentModel entity)
+        public AgentViewModel Map(Agent entity)
         {
             AgentViewModel agentView = new AgentViewModel
             {
@@ -38,7 +40,9 @@ namespace OpenBots.Server.ViewModel
                 IPAddresses = entity.IPAddresses,
                 IsEnabled = entity.IsEnabled,
                 IsConnected = entity.IsConnected,
-                CredentialId = entity.CredentialId
+                CredentialId = entity.CredentialId,
+                IPOption = entity.IPOption,
+                IsEnhancedSecurity = entity.IsEnhancedSecurity
             };
 
             return agentView;

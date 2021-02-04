@@ -1,8 +1,6 @@
 ﻿using OpenBots.Server.Model.Core;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 
 namespace OpenBots.Server.Model
 {
@@ -33,11 +31,11 @@ namespace OpenBots.Server.Model
     }
 
     /// <summary>
-    /// Stores the usage type for the IPFencing.
+    /// Stores the usage type for the IPFencing
     /// </summary>
     /// <remarks>
-    /// If usage type is Deny, then all IPs except the ones specified are denied. <br/>
-    /// If usage type is Allowed, then all IPs except the ones specified are allowed.
+    /// If usage type is Deny, then all IPs except the ones specified are denied<br/>
+    /// If usage type is Allowed, then all IPs except the ones specified are allowed
     /// </remarks>
     public enum UsageType : int
     {
@@ -49,7 +47,7 @@ namespace OpenBots.Server.Model
     /// Represents the type of rule that is being stored
     /// </summary>
     /// <remarks>
-    /// IP rule values can be stored as individual addresses or as ranges. <br/>
+    /// IP rule values can be stored as individual addresses or as ranges<br/>
     /// Headers are checked after IP values and must be exist in the http request
     /// </remarks>
     public enum RuleType : int

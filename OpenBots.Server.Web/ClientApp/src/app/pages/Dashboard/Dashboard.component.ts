@@ -3,6 +3,8 @@ import { HttpService } from '../../@core/services/http.service';
 import { Chart } from 'chart.js';
 import { BlockUI, NgBlockUI } from 'ng-block-ui';
 import { automationsApiUrl } from '../../webApiUrls/automations';
+import { JobsApiUrl } from '../../webApiUrls/jobsUrl';
+import { AgentApiUrl, QueueItemsApiUrl } from '../../webApiUrls';
 
 @Component({
   selector: 'ngx-Dashboard',
@@ -79,27 +81,33 @@ export class DashboardComponent implements OnInit {
 
   showTotalProcess(): void {
     this.httpService
-      .get(`${automationsApiUrl.automations}/count`)
+      .get(`${automationsApiUrl.automations}/${automationsApiUrl.count}`)
       .subscribe((processData: number) => {
         if (processData || processData === 0) this.dataProcess = processData;
       });
   }
 
   showTotalJob(): void {
-    this.httpService.get('Jobs/count').subscribe((JobsData: any) => {
-      if (JobsData) this.dataJobs = JobsData;
-    });
+    this.httpService
+      .get(`${JobsApiUrl.jobs}/${JobsApiUrl.count}`)
+      .subscribe((JobsData: any) => {
+        if (JobsData || JobsData === 0) this.dataJobs = JobsData;
+      });
   }
   getTotalAgents(): void {
-    this.httpService.get('agents/count').subscribe((agentsData: any) => {
-      if (agentsData) this.totalAgents = agentsData;
-    });
+    this.httpService
+      .get(`${AgentApiUrl.Agents}/${AgentApiUrl.count}`)
+      .subscribe((agentsData: any) => {
+        if (agentsData || agentsData === 0) this.totalAgents = agentsData;
+      });
   }
 
   showCountQueue(): void {
-    this.httpService.get('QueueItems/count').subscribe((countQueue: any) => {
-      if (countQueue) this.dataQueue = countQueue;
-    });
+    this.httpService
+      .get(`${QueueItemsApiUrl.QueueItems}/${QueueItemsApiUrl.count}`)
+      .subscribe((countQueue: any) => {
+        if (countQueue || countQueue === 0) this.dataQueue = countQueue;
+      });
   }
 
   showAllProcess(top: number, skip: number) {
@@ -110,9 +118,8 @@ export class DashboardComponent implements OnInit {
       this.totalCount = allprocess.totalCount;
       for (let process of this.allProcess) {
         this.httpService
-          // .get(`Jobs/CountByStatus?$filter= ProcessId eq guid'${process.id}'`)
           .get(
-            `Jobs/CountByStatus?$filter= AutomationId eq guid'${process.id}'`
+            `${JobsApiUrl.jobs}/${JobsApiUrl.CountByStatus}?$filter= AutomationId eq guid'${process.id}'`
           )
           .subscribe((jobcount: any) => {
             this.donutCount++;
@@ -139,17 +146,29 @@ export class DashboardComponent implements OnInit {
         }
       }
     }
-    var divCol = document.createElement('div');
+
+    const divCol = document.createElement('div');
     divCol.classList.add('col-md-4');
-    var canvas = document.createElement('canvas');
-    var canvas = divCol.appendChild(canvas);
+    let canvas = document.createElement('canvas');
+    canvas = divCol.appendChild(canvas);
     canvas.setAttribute('id', `chart-${count}`);
-    var ptag = document.createElement('p');
+    let ptag = document.createElement('p');
     ptag.innerHTML = name;
     ptag.style.textAlign = 'center';
-    var ptag = divCol.appendChild(ptag);
+    ptag = divCol.appendChild(ptag);
     ptag.setAttribute('id', `p-${count}`);
     document.getElementById('charts').appendChild(divCol);
+    // var divCol = document.createElement('div');
+    // divCol.classList.add('col-md-4');
+    // var canvas = document.createElement('canvas');
+    // var canvas = divCol.appendChild(canvas);
+    // canvas.setAttribute('id', `chart-${count}`);
+    // var ptag = document.createElement('p');
+    // ptag.innerHTML = name;
+    // ptag.style.textAlign = 'center';
+    // var ptag = divCol.appendChild(ptag);
+    // ptag.setAttribute('id', `p-${count}`);
+    // document.getElementById('charts').appendChild(divCol);
     this.chart = new Chart(`chart-${count}`, {
       type: 'doughnut',
       data: {
@@ -168,6 +187,14 @@ export class DashboardComponent implements OnInit {
           // labels: {
           //   fontColor: 'rgb(255, 99, 132)',
           // },
+        },
+        animation: {
+          easing: 'linear',
+          // easing: 'easeInSine',
+          // easing: 'easeOutSine',
+          // easing: 'easeOutCirc',
+          // duration: 1000,
+          animateScale: true,
         },
       },
     });

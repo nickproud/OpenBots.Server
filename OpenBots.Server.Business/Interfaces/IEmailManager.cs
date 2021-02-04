@@ -13,8 +13,9 @@ namespace OpenBots.Server.Business
         Task SendEmailAsync(EmailMessage emailMessage, string accountName = null, string id = null, string direction = null);
         bool IsEmailAllowed();
         List<EmailAttachment> AddAttachments(IFormFile[] files, Guid id, string hash = null);
-        EmailViewModel GetEmailViewModel(EmailModel email, List<EmailAttachment> attachments);
-        EmailModel CreateEmail(AddEmailViewModel request);
+        EmailViewModel GetEmailViewModel(Email email, List<EmailAttachment> attachments);
+        Email CreateEmail(AddEmailViewModel request);
         IFormFile[] CheckFiles(IFormFile[] files, Guid id, string hash, List<EmailAttachment> attachments);
+        public PaginatedList<AllEmailAttachmentsViewModel> GetEmailAttachmentsAndNames(Guid emailId, Predicate<AllEmailAttachmentsViewModel> predicate = null, string sortColumn = "", OrderByDirectionType direction = OrderByDirectionType.Ascending, int skip = 0, int take = 100);
     }
 }
