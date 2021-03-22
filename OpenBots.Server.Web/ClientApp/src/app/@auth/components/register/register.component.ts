@@ -146,7 +146,7 @@ export class NgxRegisterComponent implements OnInit {
     this.user = this.registerForm.value;
     this.errors = this.messages = [];
     this.submitted = true;
-    const url = 'Auth/Register';
+    const url = 'https://localhost:5001/api/v1/Auth/Register';
     if (this.totalOrgCount === 0) {
       this.CreateNeworganization = true;
     }
