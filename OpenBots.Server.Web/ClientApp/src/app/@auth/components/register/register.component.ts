@@ -11,6 +11,7 @@ import { getDeepFromObject } from '../../helpers';
 import { EMAIL_PATTERN } from '../constants';
 import { HttpService } from '../../../@core/services/http.service';
 import { HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'ngx-register',
@@ -62,12 +63,13 @@ export class NgxRegisterComponent implements OnInit {
     @Inject(NB_AUTH_OPTIONS) protected options = {},
     private fb: FormBuilder,
     private httpService: HttpService,
-    protected router: Router
+    protected router: Router,
+    private http: HttpClient
   ) {
-    this.httpService
-      .get('Organizations/TotalOrganizationCount')
+    this.http
+      .get('https://localhost:5001/api/v1/Organizations/TotalOrganizationCount')
       .subscribe((result) => {
-        this.totalOrgCount = result;
+          this.totalOrgCount = parseInt(result.toString());
       });
   }
 
@@ -146,7 +148,12 @@ export class NgxRegisterComponent implements OnInit {
     this.user = this.registerForm.value;
     this.errors = this.messages = [];
     this.submitted = true;
-    const url = 'https://localhost:5001/api/v1/Auth/Register';
+      const url = 'https://localhost:5001/api/v1/Auth/Register';
+      //this.http
+      //    .get('Organizations/TotalOrganizationCount')
+      //    .subscribe((result) => {
+      //        this.totalOrgCount = parseInt(result.toString());
+      //    });
     if (this.totalOrgCount === 0) {
       this.CreateNeworganization = true;
     }
@@ -159,7 +166,7 @@ export class NgxRegisterComponent implements OnInit {
       Password: this.registerForm.value.password,
     };
 
-    this.httpService
+    this.http
       .post(url, RegCredentials, headers)
       .subscribe((response) => {
         this.submitted = false;

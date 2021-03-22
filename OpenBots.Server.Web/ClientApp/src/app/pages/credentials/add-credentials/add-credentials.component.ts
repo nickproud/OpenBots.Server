@@ -105,12 +105,10 @@ export class AddCredentialsComponent implements OnInit {
       })
       .subscribe(
         (response) => {
-          if (response && response.status == 201) {
             this.httpService.success('Credential created successfully');
             this.isSubmitted = false;
             this.credentialForm.reset();
             this.router.navigate(['/pages/credentials']);
-          }
         },
         () => (this.isSubmitted = false)
       );

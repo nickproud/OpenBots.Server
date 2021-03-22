@@ -10,6 +10,7 @@ import { NB_AUTH_OPTIONS, NbAuthSocialLink } from '@nebular/auth';
 import { getDeepFromObject } from '../../helpers';
 import { EMAIL_PATTERN } from '../constants';
 import { HttpService } from '../../../@core/services/http.service';
+import { HttpClient } from '@angular/common/http';
 import { HttpHeaders } from '@angular/common/http';
 import { User } from '../../../interfaces/user';
 
@@ -58,7 +59,8 @@ export class NgxLoginComponent implements OnInit {
     @Inject(NB_AUTH_OPTIONS) protected options = {},
     private fb: FormBuilder,
     protected router: Router,
-    private httpService: HttpService
+    private httpService: HttpService,
+    private http: HttpClient
   ) {}
 
   ngOnInit(): void {
@@ -95,8 +97,9 @@ export class NgxLoginComponent implements OnInit {
       headers: new HttpHeaders({ 'Content-Type': 'application/json' }),
     };
 
-    this.httpService
-      .post('Auth/token', loginCredentials, headers)
+    //this.httpService
+    //    .post('Auth/token', loginCredentials, headers)
+      this.http.post('https://localhost:5001/api/v1/Auth/token', loginCredentials, headers)
       .subscribe((result: User) => {
         if (
           result &&

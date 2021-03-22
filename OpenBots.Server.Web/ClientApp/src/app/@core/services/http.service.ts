@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { NbToastrService } from '@nebular/theme';
 import { environment } from '../../../environments/environment';
 import { BehaviorSubject } from 'rxjs/internal/BehaviorSubject';
+import { HttpHeaders } from '@angular/common/http';
 
 @Injectable()
 export class HttpService {
@@ -26,8 +27,11 @@ export class HttpService {
     return this.http.get(`${this.apiUrl}/${endpoint}`, options);
   }
 
-  post(endpoint: string, data?, options?): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${endpoint}`, data, options);
+    post(endpoint: string, data?, options?): Observable<any> {
+        const headers = {
+            headers: new HttpHeaders({ 'Content-Type': 'application/json' }),
+        };
+      return this.http.post(`${this.apiUrl}/${endpoint}`, data, headers);
   }
 
   put(endpoint: string, data, options?): Observable<any> {
